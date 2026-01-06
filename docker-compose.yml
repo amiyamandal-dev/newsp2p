@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: newsp2p-ipfs
+    ports:
+      - "4001:4001"     # Swarm
+      - "5001:5001"     # API
+      - "8081:8080"     # Gateway
+    volumes:
+      - ipfs-data:/data/ipfs
+    environment:
+      - IPFS_PROFILE=server
+    networks:
+      - newsp2p-network
+    restart: unless-stopped
+
+  news-server:
+    build: .
+    container_name: newsp2p-server
+    ports:
+      - "8080:8080"
+    depends_on:
+      - ipfs
+    environment:
+      - NEWS_SERVER_HOST=0.0.0.0
+      - NEWS_SERVER_PORT=8080
+      - NEWS_SERVER_MODE=release
+      - NEWS_DATABASE_PATH=/data/news.db
+      - NEWS_SEARCH_INDEX_PATH=/data/search.bleve
+      - NEWS_IPFS_API_ENDPOINT=http://ipfs:5001
+      - NEWS_AUTH_JWT_SECRET=${JWT_SECRET:-your-secret-key-minimum-32-characters-change-this-in-production}
+      - NEWS_LOGGING_LEVEL=info
+      - NEWS_LOGGING_FORMAT=json
+      - NEWS_RATELIMIT_REQUESTS_PER_MINUTE=100
+    volumes:
+      - news-data:/data
+      - ./configs:/root/configs
+    networks:
+      - newsp2p-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  ipfs-data:
+    driver: local
+  news-data:
+    driver: local
+
+networks:
+  newsp2p-network:
+    driver: bridge
