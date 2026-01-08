@@ -1,124 +1,211 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" class="h-full">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.Title}} - NewsP2P</title>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>{{.Title}} - Liberation News</title>
 
-    <!-- TailwindCSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+        <!-- Google Fonts: Ubuntu -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap"
+            rel="stylesheet"
+        />
 
-    <!-- HTMX for dynamic interactions -->
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+        <!-- TailwindCSS -->
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+            tailwind.config = {
+                darkMode: "media", // or 'class'
+                theme: {
+                    extend: {
+                        fontFamily: {
+                            sans: ["Ubuntu", "sans-serif"],
+                            mono: ["Ubuntu Mono", "monospace"], // Optional: good for a consistent look
+                        },
+                    },
+                },
+            };
+        </script>
 
-    <!-- Alpine.js for interactivity -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+        <!-- HTMX for dynamic interactions -->
+        <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 
-    <!-- Custom styles -->
-    <style>
-        [x-cloak] { display: none !important; }
-    </style>
-</head>
-<body class="h-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-    <!-- Navigation -->
-    <nav class="bg-white dark:bg-gray-800 shadow-lg border-b border-gray-200 dark:border-gray-700">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <!-- Logo -->
-                    <a href="/" class="flex items-center space-x-3">
-                        <svg class="w-8 h-8 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5zm0 18.5c-3.76-1.08-6.5-4.72-6.5-8.5V8.3l6.5-3.11L18.5 8.3V12c0 3.78-2.74 7.42-6.5 8.5z"/>
-                        </svg>
-                        <span class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                            NewsP2P
-                        </span>
-                    </a>
+        <!-- Alpine.js for interactivity -->
+        <script
+            defer
+            src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+        ></script>
 
-                    <!-- Main Nav -->
-                    <div class="hidden md:ml-10 md:flex md:space-x-8">
-                        <a href="/" class="text-gray-700 dark:text-gray-200 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
-                            Feed
+        <!-- Custom styles -->
+        <style>
+            [x-cloak] {
+                display: none !important;
+            }
+            /* High contrast black and white theme overrides */
+            .bw-theme {
+                --bg-primary: #000000;
+                --bg-secondary: #111111;
+                --text-primary: #ffffff;
+                --text-secondary: #e5e5e5;
+                --border-color: #333333;
+                --accent-color: #ffffff;
+            }
+        </style>
+    </head>
+    <body class="h-full bg-white text-black dark:bg-black dark:text-white">
+        <!-- Navigation -->
+        <nav
+            class="bg-white dark:bg-black border-b border-black dark:border-white"
+        >
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <!-- Logo -->
+                        <a href="/" class="flex items-center space-x-3">
+                            <!-- Luffy Flag (Straw Hat Jolly Roger) PNG -->
+                            <img
+                                src="https://upload.wikimedia.org/wikipedia/en/thumb/9/9a/Straw_Hat_Pirates%27_Jolly_Roger_%28based_on_the_original_from_the_series%29.svg/2560px-Straw_Hat_Pirates%27_Jolly_Roger_%28based_on_the_original_from_the_series%29.svg.png"
+                                alt="Liberation News Logo"
+                                class="w-12 h-12"
+                            />
+                            <span
+                                class="text-2xl font-bold uppercase tracking-wider"
+                            >
+                                Liberation News
+                            </span>
                         </a>
-                        <a href="/explore" class="text-gray-700 dark:text-gray-200 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
-                            Explore
-                        </a>
-                        <a href="/network" class="text-gray-700 dark:text-gray-200 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
-                            🔗 Network
-                        </a>
-                    </div>
-                </div>
 
-                <!-- Right side -->
-                <div class="flex items-center space-x-4">
-                    <!-- Search -->
-                    <div class="hidden md:block">
-                        <input type="search"
-                               placeholder="Search articles..."
-                               class="w-64 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                               hx-get="/search"
-                               hx-trigger="keyup changed delay:500ms"
-                               hx-target="#search-results">
-                    </div>
-
-                    {{if .User}}
-                    <!-- User menu -->
-                    <div x-data="{ open: false }" class="relative">
-                        <button @click="open = !open" class="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-                            <div class="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold">
-                                {{index .User.Username 0 | printf "%c" | upper}}
-                            </div>
-                            <span class="text-sm font-medium text-gray-700 dark:text-gray-200">{{.User.Username}}</span>
-                        </button>
-
-                        <div x-show="open"
-                             @click.away="open = false"
-                             x-cloak
-                             class="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5">
-                            <div class="py-1">
-                                <a href="/profile" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                    👤 Profile
-                                </a>
-                                <a href="/create" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                    ✍️ Write Article
-                                </a>
-                                <a href="/logout" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                    🚪 Logout
-                                </a>
-                            </div>
+                        <!-- Main Nav -->
+                        <div class="hidden md:ml-10 md:flex md:space-x-8">
+                            <a
+                                href="/"
+                                class="text-black dark:text-white hover:underline px-3 py-2 text-sm font-bold uppercase"
+                            >
+                                Feed
+                            </a>
+                            <a
+                                href="/explore"
+                                class="text-black dark:text-white hover:underline px-3 py-2 text-sm font-bold uppercase"
+                            >
+                                Explore
+                            </a>
+                            <a
+                                href="/network"
+                                class="text-black dark:text-white hover:underline px-3 py-2 text-sm font-bold uppercase"
+                            >
+                                Network
+                            </a>
                         </div>
                     </div>
-                    {{else}}
-                    <!-- Auth buttons -->
-                    <a href="/login" class="text-gray-700 dark:text-gray-200 hover:text-blue-600 px-4 py-2 rounded-md text-sm font-medium">
-                        Login
-                    </a>
-                    <a href="/register" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-blue-700 hover:to-purple-700 transition">
-                        Get Started
-                    </a>
-                    {{end}}
+
+                    <!-- Right side -->
+                    <div class="flex items-center space-x-4">
+                        <!-- Search -->
+                        <div class="hidden md:block">
+                            <input
+                                type="search"
+                                placeholder="SEARCH..."
+                                class="w-64 px-4 py-2 bg-transparent border-2 border-black dark:border-white rounded-none focus:outline-none focus:bg-black focus:text-white dark:focus:bg-white dark:focus:text-black transition-colors uppercase placeholder-gray-500"
+                                hx-get="/search"
+                                hx-trigger="keyup changed delay:500ms"
+                                hx-target="#search-results"
+                            />
+                        </div>
+
+                        {{if .User}}
+                        <!-- User menu -->
+                        <div x-data="{ open: false }" class="relative">
+                            <button
+                                @click="open = !open"
+                                class="flex items-center space-x-2 px-3 py-2 border-2 border-transparent hover:border-black dark:hover:border-white transition-all"
+                            >
+                                <div
+                                    class="w-8 h-8 bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-bold"
+                                >
+                                    {{index .User.Username 0 | printf "%c" |
+                                    upper}}
+                                </div>
+                                <span class="text-sm font-bold uppercase"
+                                    >{{.User.Username}}</span
+                                >
+                            </button>
+
+                            <div
+                                x-show="open"
+                                @click.away="open = false"
+                                x-cloak
+                                class="absolute right-0 mt-2 w-48 bg-white dark:bg-black border-2 border-black dark:border-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] z-50"
+                            >
+                                <div class="py-1">
+                                    <a
+                                        href="/profile"
+                                        class="block px-4 py-2 text-sm font-bold uppercase hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
+                                    >
+                                        PROFILE
+                                    </a>
+                                    <a
+                                        href="/create"
+                                        class="block px-4 py-2 text-sm font-bold uppercase hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
+                                    >
+                                        WRITE ARTICLE
+                                    </a>
+                                    <a
+                                        href="/logout"
+                                        class="block px-4 py-2 text-sm font-bold uppercase hover:bg-red-600 hover:text-white"
+                                    >
+                                        LOGOUT
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {{else}}
+                        <!-- Auth buttons -->
+                        <a
+                            href="/login"
+                            class="text-black dark:text-white font-bold uppercase hover:underline px-4 py-2 text-sm"
+                        >
+                            Login
+                        </a>
+                        <a
+                            href="/register"
+                            class="bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-bold uppercase hover:bg-gray-800 dark:hover:bg-gray-200 transition"
+                        >
+                            Join Us
+                        </a>
+                        {{end}}
+                    </div>
                 </div>
             </div>
-        </div>
-    </nav>
+        </nav>
 
-    <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {{template "content" .}}
-    </main>
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {{template "content" .}}
+        </main>
 
-    <!-- Footer -->
-    <footer class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-12">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="text-center text-gray-600 dark:text-gray-400">
-                <p class="text-sm">
-                    🌐 Powered by P2P Technology | 🔒 Decentralized & Censorship-Resistant
-                </p>
-                <p class="text-xs mt-2">
-                    Connected to <span class="font-bold text-blue-600">{{.PeerCount}}</span> peers
-                </p>
+        <!-- Footer -->
+        <footer
+            class="bg-black text-white dark:bg-white dark:text-black mt-12 border-t-4 border-black dark:border-white"
+        >
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+                <div class="text-center">
+                    <p class="text-lg font-bold uppercase tracking-widest mb-4">
+                        Liberation News
+                    </p>
+                    <p class="text-sm font-mono">
+                        NO GODS. NO MASTERS. JUST NEWS.
+                    </p>
+                    <p class="text-xs mt-4 opacity-70">
+                        Connected to
+                        <span class="font-bold border-b border-current"
+                            >{{.PeerCount}}</span
+                        >
+                        peers
+                    </p>
+                </div>
             </div>
-        </div>
-    </footer>
-</body>
+        </footer>
+    </body>
 </html>

@@ -1,25 +1,25 @@
 {{define "content"}}
 <div class="max-w-4xl mx-auto">
     <!-- Header -->
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Write a New Article</h1>
-        <p class="mt-2 text-gray-600 dark:text-gray-400">
-            Share your news with the decentralized network. Your article will be signed, stored on IPFS, and broadcast to all peers.
+    <div class="mb-8 border-b-4 border-black dark:border-white pb-4">
+        <h1 class="text-4xl font-black uppercase text-black dark:text-white">Write Article</h1>
+        <p class="mt-2 text-gray-600 dark:text-gray-400 font-mono text-sm uppercase">
+            Share news. Decentralized. Uncensored.
         </p>
     </div>
 
     <!-- Article Form -->
     <form action="/create" method="POST" class="space-y-6">
         {{if .Error}}
-        <div class="rounded-md bg-red-50 p-4">
+        <div class="border-2 border-red-600 p-4 bg-white dark:bg-black">
             <div class="flex">
                 <div class="flex-shrink-0">
-                    <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <svg class="h-5 w-5 text-red-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
                     </svg>
                 </div>
                 <div class="ml-3">
-                    <h3 class="text-sm font-medium text-red-800">
+                    <h3 class="text-sm font-bold text-red-600 uppercase">
                         {{.Error}}
                     </h3>
                 </div>
@@ -28,9 +28,9 @@
         {{end}}
 
         <!-- Title Field -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-            <label for="title" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Article Title <span class="text-red-500">*</span>
+        <div class="bg-white dark:bg-black border-2 border-black dark:border-white p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
+            <label for="title" class="block text-sm font-bold uppercase text-black dark:text-white mb-2">
+                Article Title <span class="text-red-600">*</span>
             </label>
             <input id="title"
                    name="title"
@@ -38,23 +38,23 @@
                    required
                    value="{{if .Form}}{{.Form.Title}}{{end}}"
                    maxlength="200"
-                   class="w-full px-4 py-3 text-xl font-semibold border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                   placeholder="Enter a compelling title...">
-            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Maximum 200 characters</p>
+                   class="w-full px-4 py-3 text-xl font-bold bg-transparent border-2 border-black dark:border-white focus:outline-none focus:bg-black focus:text-white dark:focus:bg-white dark:focus:text-black transition-colors placeholder-gray-500"
+                   placeholder="ENTER A COMPELLING TITLE...">
+            <p class="mt-2 text-xs font-mono text-gray-500 dark:text-gray-400 uppercase">Maximum 200 characters</p>
         </div>
 
         <!-- Body Field -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-            <label for="body" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Article Content <span class="text-red-500">*</span>
+        <div class="bg-white dark:bg-black border-2 border-black dark:border-white p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
+            <label for="body" class="block text-sm font-bold uppercase text-black dark:text-white mb-2">
+                Article Content <span class="text-red-600">*</span>
             </label>
             <textarea id="body"
                       name="body"
                       required
                       rows="20"
-                      class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm"
+                      class="w-full px-4 py-3 bg-transparent border-2 border-black dark:border-white focus:outline-none focus:bg-black focus:text-white dark:focus:bg-white dark:focus:text-black transition-colors font-mono text-sm placeholder-gray-500"
                       placeholder="Write your article content here. You can use markdown formatting...">{{if .Form}}{{.Form.Body}}{{end}}</textarea>
-            <div class="mt-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+            <div class="mt-2 flex items-center justify-between text-xs font-mono text-gray-500 dark:text-gray-400 uppercase">
                 <span>Markdown supported</span>
                 <span id="word-count">0 words</span>
             </div>
@@ -63,14 +63,14 @@
         <!-- Category and Tags -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Category Field -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-                <label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Category <span class="text-red-500">*</span>
+            <div class="bg-white dark:bg-black border-2 border-black dark:border-white p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
+                <label for="category" class="block text-sm font-bold uppercase text-black dark:text-white mb-2">
+                    Category <span class="text-red-600">*</span>
                 </label>
                 <select id="category"
                         name="category"
                         required
-                        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                        class="w-full px-4 py-3 bg-transparent border-2 border-black dark:border-white focus:outline-none focus:bg-black focus:text-white dark:focus:bg-white dark:focus:text-black uppercase font-bold">
                     <option value="">Select a category...</option>
                     {{$sel := ""}}
                     {{if .Form}}{{$sel = .Form.Category}}{{end}}
@@ -88,78 +88,62 @@
             </div>
 
             <!-- Tags Field -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-                <label for="tags" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <div class="bg-white dark:bg-black border-2 border-black dark:border-white p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
+                <label for="tags" class="block text-sm font-bold uppercase text-black dark:text-white mb-2">
                     Tags
                 </label>
                 <input id="tags"
                        name="tags"
                        type="text"
                        value="{{if .Form}}{{.Form.Tags}}{{end}}"
-                       class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                       placeholder="blockchain, decentralized, news">
-                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Comma-separated tags for discoverability</p>
+                       class="w-full px-4 py-3 bg-transparent border-2 border-black dark:border-white focus:outline-none focus:bg-black focus:text-white dark:focus:bg-white dark:focus:text-black font-mono uppercase placeholder-gray-500"
+                       placeholder="BLOCKCHAIN, DECENTRALIZED, NEWS">
+                <p class="mt-2 text-xs font-mono text-gray-500 dark:text-gray-400 uppercase">Comma-separated tags</p>
             </div>
         </div>
 
-        <!-- Response Container removed -->
-
         <!-- Publishing Info -->
-        <div class="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900 dark:to-purple-900 rounded-xl p-6 border border-blue-200 dark:border-blue-700">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">What happens when you publish?</h3>
-            <div class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+        <div class="bg-white dark:bg-black border-2 border-black dark:border-white p-6">
+            <h3 class="text-lg font-black uppercase text-black dark:text-white mb-3">Publishing Protocol</h3>
+            <div class="space-y-2 text-sm font-mono text-gray-700 dark:text-gray-300 uppercase">
                 <div class="flex items-start">
-                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                    </svg>
-                    <span><strong>Cryptographic Signing:</strong> Your article will be signed with your Ed25519 private key</span>
+                    <span class="mr-2">⚡</span>
+                    <span><strong>Signed:</strong> Ed25519 Cryptography</span>
                 </div>
                 <div class="flex items-start">
-                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                    </svg>
-                    <span><strong>IPFS Storage:</strong> Content will be uploaded to IPFS and assigned a unique CID</span>
+                    <span class="mr-2">📦</span>
+                    <span><strong>Storage:</strong> IPFS Content Addressing</span>
                 </div>
                 <div class="flex items-start">
-                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                    </svg>
-                    <span><strong>P2P Broadcasting:</strong> Your article will be broadcast to all connected peers</span>
+                    <span class="mr-2">📡</span>
+                    <span><strong>Broadcast:</strong> LibP2P GossipSub</span>
                 </div>
                 <div class="flex items-start">
-                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                    </svg>
-                    <span><strong>Reputation Boost:</strong> You'll earn +2 reputation points for publishing quality content</span>
-                </div>
-                <div class="flex items-start">
-                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                    </svg>
-                    <span><strong>Censorship-Resistant:</strong> Once published, your article cannot be deleted by any central authority</span>
+                    <span class="mr-2">🛡️</span>
+                    <span><strong>Censorship-Resistant:</strong> Permanent & Distributed</span>
                 </div>
             </div>
         </div>
 
         <!-- Action Buttons -->
-        <div class="flex items-center justify-between">
-            <a href="/" class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+        <div class="flex items-center justify-between pt-4 border-t-2 border-black dark:border-white">
+            <a href="/" class="px-6 py-3 border-2 border-black dark:border-white text-black dark:text-white font-bold uppercase hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all">
                 Cancel
             </a>
 
             <div class="flex space-x-4">
                 <button type="button"
-                        class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        class="px-6 py-3 border-2 border-gray-400 text-gray-600 font-bold uppercase hover:border-black hover:text-black transition-all">
                     Save Draft
                 </button>
 
                 <button type="submit"
-                        class="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition shadow-lg">
+                        class="px-8 py-3 bg-black dark:bg-white text-white dark:text-black border-2 border-transparent font-bold uppercase hover:opacity-80 transition-all shadow-lg">
                     <span class="flex items-center">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"/>
                         </svg>
-                        Publish to P2P Network
+                        Publish to Network
                     </span>
                 </button>
             </div>
