@@ -7,8 +7,8 @@ server:
   shutdown_timeout: 10s
 
 database:
-  mode: sqlite  # "sqlite" for centralized, "distributed" for P2P
-  path: ./data/news.db  # SQLite DB or BadgerDB cache path
+  mode: distributed  # "sqlite" for centralized, "distributed" for P2P
+  path: ./data/badger_db  # SQLite DB or BadgerDB cache path
   max_open_conns: 10
   max_idle_conns: 5
 
@@ -30,7 +30,7 @@ search:
 
 logging:
   level: info  # debug, info, warn, error
-  format: json  # json or text
+  format: text  # json or text
 
 rate_limit:
   requests_per_minute: 1000

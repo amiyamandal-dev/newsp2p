@@ -16,7 +16,7 @@ import (
 type SyncService struct {
 	feedRepo    repository.FeedRepository
 	articleRepo repository.ArticleRepository
-	ipfsClient  *ipfs.Client
+	ipfsClient  IPFSClient
 	ipnsManager *ipfs.IPNSManager
 	logger      *logger.Logger
 	stopChan    chan struct{}
@@ -26,7 +26,7 @@ type SyncService struct {
 func NewSyncService(
 	feedRepo repository.FeedRepository,
 	articleRepo repository.ArticleRepository,
-	ipfsClient *ipfs.Client,
+	ipfsClient IPFSClient,
 	ipnsManager *ipfs.IPNSManager,
 	logger *logger.Logger,
 ) *SyncService {

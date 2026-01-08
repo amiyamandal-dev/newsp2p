@@ -7,9 +7,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/amiyamandal-dev/newsp2p/internal/auth"
 	"github.com/amiyamandal-dev/newsp2p/internal/domain"
 	"github.com/amiyamandal-dev/newsp2p/internal/p2p"
-	"github.com/amiyamandal-dev/newsp2p/internal/repository/sqlite"
+	"github.com/amiyamandal-dev/newsp2p/internal/repository/badger"
 	"github.com/amiyamandal-dev/newsp2p/internal/service"
 	"github.com/amiyamandal-dev/newsp2p/pkg/logger"
 )
@@ -19,7 +20,8 @@ type WebHandler struct {
 	articleService *service.ArticleService
 	userService    *service.UserService
 	searchService  *service.SearchService
-	db             *sqlite.DB
+	jwtManager     *auth.JWTManager
+	db             *badger.DB
 	p2pNode        *p2p.P2PNode
 	logger         *logger.Logger
 	templates      map[string]*template.Template
@@ -30,13 +32,14 @@ func NewWebHandler(
 	articleService *service.ArticleService,
 	userService *service.UserService,
 	searchService *service.SearchService,
-	db *sqlite.DB,
+	jwtManager *auth.JWTManager,
+	db *badger.DB,
 	p2pNode *p2p.P2PNode,
 	log *logger.Logger,
 ) *WebHandler {
 	// Load templates with custom functions
 	funcMap := template.FuncMap{
-		"truncate": func(s string, length int) string {
+		"truncate": func(length int, s string) string {
 			if len(s) <= length {
 				return s
 			}
@@ -70,6 +73,7 @@ func NewWebHandler(
 		articleService: articleService,
 		userService:    userService,
 		searchService:  searchService,
+		jwtManager:     jwtManager,
 		db:             db,
 		p2pNode:        p2pNode,
 		logger:         log.WithComponent("web-handler"),
@@ -80,6 +84,7 @@ func NewWebHandler(
 // HomePage renders the home page
 func (h *WebHandler) HomePage(c *gin.Context) {
 	ctx := c.Request.Context()
+	user := GetUser(c)
 
 	// Get recent articles
 	articles, total, err := h.articleService.List(ctx, &domain.ArticleListFilter{
@@ -103,6 +108,7 @@ func (h *WebHandler) HomePage(c *gin.Context) {
 
 	data := gin.H{
 		"Title":    "Home",
+		"User":     user,
 		"Articles": articles,
 		"Stats": gin.H{
 			"TotalArticles": total,
@@ -126,6 +132,7 @@ func (h *WebHandler) HomePage(c *gin.Context) {
 func (h *WebHandler) ArticlePage(c *gin.Context) {
 	cid := c.Param("cid")
 	ctx := c.Request.Context()
+	user := GetUser(c)
 
 	article, err := h.articleService.GetByCID(ctx, cid)
 	if err != nil {
@@ -135,6 +142,7 @@ func (h *WebHandler) ArticlePage(c *gin.Context) {
 
 	data := gin.H{
 		"Title":     article.Title,
+		"User":      user,
 		"Article":   article,
 		"PeerCount": h.getPeerCount(),
 	}
@@ -149,6 +157,7 @@ func (h *WebHandler) ArticlePage(c *gin.Context) {
 // ExplorePage renders the explore/search page
 func (h *WebHandler) ExplorePage(c *gin.Context) {
 	ctx := c.Request.Context()
+	user := GetUser(c)
 
 	// Get all articles for exploration
 	articles, _, err := h.articleService.List(ctx, &domain.ArticleListFilter{
@@ -162,6 +171,7 @@ func (h *WebHandler) ExplorePage(c *gin.Context) {
 
 	data := gin.H{
 		"Title":     "Explore",
+		"User":      user,
 		"Articles":  articles,
 		"PeerCount": h.getPeerCount(),
 	}
@@ -175,6 +185,23 @@ func (h *WebHandler) ExplorePage(c *gin.Context) {
 
 // LoginPage renders the login page
 func (h *WebHandler) LoginPage(c *gin.Context) {
+	if GetUser(c) != nil {
+		c.Redirect(http.StatusSeeOther, "/")
+		return
+	}
+
+	// Auto-login via query param (e.g. from console startup)
+	token := c.Query("token")
+	if token != "" {
+		// Validate token
+		_, err := h.jwtManager.ValidateToken(token)
+		if err == nil {
+			c.SetCookie(CookieAccessToken, token, 3600*24, "/", "", false, true)
+			c.Redirect(http.StatusSeeOther, "/")
+			return
+		}
+	}
+
 	data := gin.H{
 		"Title":     "Login",
 		"PeerCount": h.getPeerCount(),
@@ -189,6 +216,11 @@ func (h *WebHandler) LoginPage(c *gin.Context) {
 
 // RegisterPage renders the registration page
 func (h *WebHandler) RegisterPage(c *gin.Context) {
+	if GetUser(c) != nil {
+		c.Redirect(http.StatusSeeOther, "/")
+		return
+	}
+
 	data := gin.H{
 		"Title":     "Register",
 		"PeerCount": h.getPeerCount(),
@@ -201,10 +233,91 @@ func (h *WebHandler) RegisterPage(c *gin.Context) {
 	}
 }
 
+// WebLogin handles login form submission
+func (h *WebHandler) WebLogin(c *gin.Context) {
+	username := c.PostForm("username")
+	password := c.PostForm("password")
+
+	req := &domain.UserLoginRequest{
+		Username: username,
+		Password: password,
+	}
+
+	loginResp, err := h.userService.Login(c.Request.Context(), req)
+	if err != nil {
+		data := gin.H{
+			"Title":     "Login",
+			"Error":     "Invalid username or password",
+			"PeerCount": h.getPeerCount(),
+		}
+		h.templates["login"].ExecuteTemplate(c.Writer, "base.html", data)
+		return
+	}
+
+	// Set cookie
+	// MaxAge in seconds (24 hours)
+	c.SetCookie(CookieAccessToken, loginResp.Tokens.AccessToken, 3600*24, "/", "", false, true)
+
+	c.Redirect(http.StatusSeeOther, "/")
+}
+
+// WebRegister handles registration form submission
+func (h *WebHandler) WebRegister(c *gin.Context) {
+	username := c.PostForm("username")
+	password := c.PostForm("password")
+
+	req := &domain.UserRegisterRequest{
+		Username: username,
+		Email:    "", // Email is no longer used/collected
+		Password: password,
+	}
+
+	_, err := h.userService.Register(c.Request.Context(), req)
+	if err != nil {
+		errorMsg := "Registration failed"
+		if err == domain.ErrUserAlreadyExists {
+			errorMsg = "Username or email already exists"
+		}
+		
+		data := gin.H{
+			"Title":     "Register",
+			"Error":     errorMsg,
+			"PeerCount": h.getPeerCount(),
+		}
+		h.templates["register"].ExecuteTemplate(c.Writer, "base.html", data)
+		return
+	}
+
+	// Auto login after register
+	loginReq := &domain.UserLoginRequest{
+		Username: username,
+		Password: password,
+	}
+	loginResp, err := h.userService.Login(c.Request.Context(), loginReq)
+	if err == nil {
+		c.SetCookie(CookieAccessToken, loginResp.Tokens.AccessToken, 3600*24, "/", "", false, true)
+	}
+
+	c.Redirect(http.StatusSeeOther, "/")
+}
+
+// WebLogout handles logout
+func (h *WebHandler) WebLogout(c *gin.Context) {
+	c.SetCookie(CookieAccessToken, "", -1, "/", "", false, true)
+	c.Redirect(http.StatusSeeOther, "/login")
+}
+
 // CreateArticlePage renders the article creation page
 func (h *WebHandler) CreateArticlePage(c *gin.Context) {
+	user := GetUser(c)
+	if user == nil {
+		c.Redirect(http.StatusSeeOther, "/login")
+		return
+	}
+
 	data := gin.H{
 		"Title":     "Write Article",
+		"User":      user,
 		"PeerCount": h.getPeerCount(),
 	}
 
@@ -215,8 +328,63 @@ func (h *WebHandler) CreateArticlePage(c *gin.Context) {
 	}
 }
 
+// WebCreateArticle handles article creation form submission
+func (h *WebHandler) WebCreateArticle(c *gin.Context) {
+	user := GetUser(c)
+	if user == nil {
+		c.Redirect(http.StatusSeeOther, "/login")
+		return
+	}
+
+	title := c.PostForm("title")
+	body := c.PostForm("body")
+	category := c.PostForm("category")
+	tags := c.PostForm("tags")
+
+	tagList := strings.Split(tags, ",")
+	for i := range tagList {
+		tagList[i] = strings.TrimSpace(tagList[i])
+	}
+	// Filter empty tags
+	var cleanTags []string
+	for _, t := range tagList {
+		if t != "" {
+			cleanTags = append(cleanTags, t)
+		}
+	}
+
+	req := &domain.ArticleCreateRequest{
+		Title:    title,
+		Body:     body,
+		Category: category,
+		Tags:     cleanTags,
+	}
+
+	article, err := h.articleService.Create(c.Request.Context(), req, user.ID)
+	if err != nil {
+		h.logger.Error("Failed to create article", "error", err)
+		data := gin.H{
+			"Title":     "Write Article",
+			"User":      user,
+			"PeerCount": h.getPeerCount(),
+			"Error":     "Failed to create article. Please try again.",
+			"Form": gin.H{
+				"Title":    title,
+				"Body":     body,
+				"Category": category,
+				"Tags":     tags,
+			},
+		}
+		h.templates["create"].ExecuteTemplate(c.Writer, "base.html", data)
+		return
+	}
+
+	c.Redirect(http.StatusSeeOther, "/article/"+article.CID)
+}
+
 // NetworkPage renders the P2P network status page
 func (h *WebHandler) NetworkPage(c *gin.Context) {
+	user := GetUser(c)
 	var peers []gin.H
 	var peerID string
 
@@ -234,6 +402,7 @@ func (h *WebHandler) NetworkPage(c *gin.Context) {
 
 	data := gin.H{
 		"Title":     "P2P Network",
+		"User":      user,
 		"PeerID":    peerID,
 		"Peers":     peers,
 		"PeerCount": len(peers),

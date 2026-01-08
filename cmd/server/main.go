@@ -17,7 +17,7 @@ import (
 	"github.com/amiyamandal-dev/newsp2p/internal/config"
 	"github.com/amiyamandal-dev/newsp2p/internal/ipfs"
 	"github.com/amiyamandal-dev/newsp2p/internal/p2p"
-	"github.com/amiyamandal-dev/newsp2p/internal/repository/sqlite"
+	"github.com/amiyamandal-dev/newsp2p/internal/repository/badger"
 	"github.com/amiyamandal-dev/newsp2p/internal/search"
 	"github.com/amiyamandal-dev/newsp2p/internal/service"
 	"github.com/amiyamandal-dev/newsp2p/internal/web"
@@ -53,19 +53,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize database
-	db, err := sqlite.New(
-		cfg.Database.Path,
-		cfg.Database.MaxOpenConns,
-		cfg.Database.MaxIdleConns,
-	)
+	// Initialize database (BadgerDB)
+	db, err := badger.New(cfg.Database.Path)
 	if err != nil {
 		log.Error("Failed to initialize database", "error", err)
 		os.Exit(1)
 	}
 	defer db.Close()
 
-	log.Info("✅ Database initialized", "path", cfg.Database.Path)
+	log.Info("✅ Database initialized (BadgerDB)", "path", cfg.Database.Path)
 
 	// Initialize IPFS client
 	ipfsClient := ipfs.NewClient(
@@ -151,10 +147,10 @@ func main() {
 	count, _ := searchIndex.Count()
 	log.Info("✅ Search index opened", "path", cfg.Search.IndexPath, "document_count", count)
 
-	// Initialize repositories
-	articleRepo := sqlite.NewArticleRepo(db)
-	userRepo := sqlite.NewUserRepo(db)
-	feedRepo := sqlite.NewFeedRepo(db)
+	// Initialize repositories (BadgerDB)
+	articleRepo := badger.NewArticleRepo(db)
+	userRepo := badger.NewUserRepo(db)
+	feedRepo := badger.NewFeedRepo(db)
 
 	// Initialize JWT manager
 	jwtManager := auth.NewJWTManager(
@@ -173,10 +169,22 @@ func main() {
 		articleRepo,
 		userRepo,
 		ipfsClient,
+		broadcaster,
 		articleSigner,
 		searchService,
 		log,
 	)
+
+	// Register P2P handlers
+	if broadcaster != nil {
+		broadcaster.OnArticle(func(msg *p2p.ArticleMessage) error {
+			if msg.Article != nil {
+				return articleService.HandleIncomingArticle(msg.Article)
+			}
+			return nil
+		})
+	}
+
 	feedService := service.NewFeedService(feedRepo, articleRepo, ipnsManager, log)
 	syncService := service.NewSyncService(feedRepo, articleRepo, ipfsClient, ipnsManager, log)
 
@@ -188,7 +196,7 @@ func main() {
 	healthHandler := handlers.NewHealthHandler(db, ipfsClient, searchIndex, log)
 
 	// Initialize web handler
-	webHandler := web.NewWebHandler(articleService, userService, searchService, db, p2pNode, log)
+	webHandler := web.NewWebHandler(articleService, userService, searchService, jwtManager, db, p2pNode, log)
 
 	// Initialize router
 	router := api.NewRouter(
@@ -199,6 +207,7 @@ func main() {
 		healthHandler,
 		webHandler,
 		jwtManager,
+		userService,
 		cfg,
 		log,
 	)
@@ -206,13 +215,34 @@ func main() {
 	// Setup routes
 	engine := router.Setup()
 
-	// Create HTTP server
+	// Define address
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
+
+	// Create HTTP server
 	server := &http.Server{
 		Addr:         addr,
 		Handler:      engine,
 		ReadTimeout:  cfg.Server.ReadTimeout,
 		WriteTimeout: cfg.Server.WriteTimeout,
+	}
+
+	// Auto-Login for P2P Node Owner
+	if p2pNode != nil {
+		nodeUser, err := userService.EnsureNodeUser(
+			context.Background(),
+			p2pNode.GetPeerID().String(),
+			p2pNode.GetHost().Peerstore().PubKey(p2pNode.GetPeerID()),
+		)
+		if err != nil {
+			log.Warn("Failed to ensure node user", "error", err)
+		} else {
+			// Generate long-lived token for the node owner
+			tokens, err := jwtManager.GenerateTokenPair(nodeUser.ID, nodeUser.Username, nodeUser.Email)
+			if err == nil {
+				log.Info("🔑 Node Identity Active", "username", nodeUser.Username, "peer_id", nodeUser.ID)
+				log.Info("🔓 Auto-Login Link: http://" + addr + "/login?token=" + tokens.AccessToken)
+			}
+		}
 	}
 
 	// Start background sync service

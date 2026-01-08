@@ -9,11 +9,23 @@
     </div>
 
     <!-- Article Form -->
-    <form action="/api/v1/articles" method="POST"
-          hx-post="/api/v1/articles"
-          hx-target="#create-result"
-          hx-swap="innerHTML"
-          class="space-y-6">
+    <form action="/create" method="POST" class="space-y-6">
+        {{if .Error}}
+        <div class="rounded-md bg-red-50 p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800">
+                        {{.Error}}
+                    </h3>
+                </div>
+            </div>
+        </div>
+        {{end}}
 
         <!-- Title Field -->
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
@@ -24,6 +36,7 @@
                    name="title"
                    type="text"
                    required
+                   value="{{if .Form}}{{.Form.Title}}{{end}}"
                    maxlength="200"
                    class="w-full px-4 py-3 text-xl font-semibold border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                    placeholder="Enter a compelling title...">
@@ -40,7 +53,7 @@
                       required
                       rows="20"
                       class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm"
-                      placeholder="Write your article content here. You can use markdown formatting..."></textarea>
+                      placeholder="Write your article content here. You can use markdown formatting...">{{if .Form}}{{.Form.Body}}{{end}}</textarea>
             <div class="mt-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                 <span>Markdown supported</span>
                 <span id="word-count">0 words</span>
@@ -59,16 +72,18 @@
                         required
                         class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
                     <option value="">Select a category...</option>
-                    <option value="technology">Technology</option>
-                    <option value="politics">Politics</option>
-                    <option value="business">Business</option>
-                    <option value="science">Science</option>
-                    <option value="health">Health</option>
-                    <option value="environment">Environment</option>
-                    <option value="culture">Culture</option>
-                    <option value="sports">Sports</option>
-                    <option value="entertainment">Entertainment</option>
-                    <option value="other">Other</option>
+                    {{$sel := ""}}
+                    {{if .Form}}{{$sel = .Form.Category}}{{end}}
+                    <option value="technology" {{if eq $sel "technology"}}selected{{end}}>Technology</option>
+                    <option value="politics" {{if eq $sel "politics"}}selected{{end}}>Politics</option>
+                    <option value="business" {{if eq $sel "business"}}selected{{end}}>Business</option>
+                    <option value="science" {{if eq $sel "science"}}selected{{end}}>Science</option>
+                    <option value="health" {{if eq $sel "health"}}selected{{end}}>Health</option>
+                    <option value="environment" {{if eq $sel "environment"}}selected{{end}}>Environment</option>
+                    <option value="culture" {{if eq $sel "culture"}}selected{{end}}>Culture</option>
+                    <option value="sports" {{if eq $sel "sports"}}selected{{end}}>Sports</option>
+                    <option value="entertainment" {{if eq $sel "entertainment"}}selected{{end}}>Entertainment</option>
+                    <option value="other" {{if eq $sel "other"}}selected{{end}}>Other</option>
                 </select>
             </div>
 
@@ -80,14 +95,14 @@
                 <input id="tags"
                        name="tags"
                        type="text"
+                       value="{{if .Form}}{{.Form.Tags}}{{end}}"
                        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                        placeholder="blockchain, decentralized, news">
                 <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Comma-separated tags for discoverability</p>
             </div>
         </div>
 
-        <!-- Response Container -->
-        <div id="create-result"></div>
+        <!-- Response Container removed -->
 
         <!-- Publishing Info -->
         <div class="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900 dark:to-purple-900 rounded-xl p-6 border border-blue-200 dark:border-blue-700">

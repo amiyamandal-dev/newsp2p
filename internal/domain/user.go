@@ -10,9 +10,9 @@ var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-
 
 // User represents a user in the system
 type User struct {
-	ID           string    `json:"id" db:"id"`
+	ID           string    `json:"id" db:"id"`                 // This is the PeerID
 	Username     string    `json:"username" db:"username" binding:"required,min=3,max=50"`
-	Email        string    `json:"email" db:"email" binding:"required,email"`
+	Email        string    `json:"email,omitempty" db:"email"` // Optional
 	PasswordHash string    `json:"-" db:"password_hash"`       // Never expose
 	PublicKey    string    `json:"public_key" db:"public_key"` // Ed25519 public key
 	PrivateKey   string    `json:"-" db:"private_key"`         // Encrypted, never expose
@@ -32,10 +32,8 @@ func (u *User) Validate() error {
 	if len(u.Username) > 50 {
 		return NewValidationError("username", "username must be at most 50 characters")
 	}
-	if u.Email == "" {
-		return NewValidationError("email", "email is required")
-	}
-	if !emailRegex.MatchString(u.Email) {
+	// Email is optional now
+	if u.Email != "" && !emailRegex.MatchString(u.Email) {
 		return NewValidationError("email", "invalid email format")
 	}
 	if u.PasswordHash == "" {
@@ -50,7 +48,7 @@ func (u *User) Validate() error {
 // UserRegisterRequest represents a user registration request
 type UserRegisterRequest struct {
 	Username string `json:"username" binding:"required,min=3,max=50"`
-	Email    string `json:"email" binding:"required,email"`
+	Email    string `json:"email,omitempty"` // Optional
 	Password string `json:"password" binding:"required,min=8"`
 }
 

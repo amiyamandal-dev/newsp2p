@@ -9,7 +9,6 @@ import (
 
 	"github.com/amiyamandal-dev/newsp2p/internal/auth"
 	"github.com/amiyamandal-dev/newsp2p/internal/domain"
-	"github.com/amiyamandal-dev/newsp2p/internal/ipfs"
 	"github.com/amiyamandal-dev/newsp2p/internal/repository"
 	"github.com/amiyamandal-dev/newsp2p/pkg/crypto"
 	"github.com/amiyamandal-dev/newsp2p/pkg/logger"
@@ -22,11 +21,24 @@ type SearchIndexer interface {
 	DeleteArticle(ctx context.Context, articleID string) error
 }
 
+// IPFSClient defines the interface for IPFS operations
+type IPFSClient interface {
+	Add(ctx context.Context, data []byte) (string, error)
+	Cat(ctx context.Context, cid string) ([]byte, error)
+	Unpin(ctx context.Context, cid string) error
+}
+
+// ArticleBroadcaster defines the interface for broadcasting articles to the P2P network
+type ArticleBroadcaster interface {
+	BroadcastArticle(msgType string, article *domain.Article) error
+}
+
 // ArticleService handles article-related business logic
 type ArticleService struct {
 	articleRepo repository.ArticleRepository
 	userRepo    repository.UserRepository
-	ipfsClient  *ipfs.Client
+	ipfsClient  IPFSClient
+	broadcaster ArticleBroadcaster
 	signer      *auth.ArticleSigner
 	indexer     SearchIndexer
 	logger      *logger.Logger
@@ -36,7 +48,8 @@ type ArticleService struct {
 func NewArticleService(
 	articleRepo repository.ArticleRepository,
 	userRepo repository.UserRepository,
-	ipfsClient *ipfs.Client,
+	ipfsClient IPFSClient,
+	broadcaster ArticleBroadcaster,
 	signer *auth.ArticleSigner,
 	indexer SearchIndexer,
 	logger *logger.Logger,
@@ -45,6 +58,7 @@ func NewArticleService(
 		articleRepo: articleRepo,
 		userRepo:    userRepo,
 		ipfsClient:  ipfsClient,
+		broadcaster: broadcaster,
 		signer:      signer,
 		indexer:     indexer,
 		logger:      logger.WithComponent("article-service"),
@@ -119,6 +133,15 @@ func (s *ArticleService) Create(ctx context.Context, req *domain.ArticleCreateRe
 	if err := s.articleRepo.Create(ctx, article); err != nil {
 		s.logger.Error("Failed to store article", "article_id", article.ID, "error", err)
 		return nil, fmt.Errorf("failed to store article: %w", err)
+	}
+
+	// Broadcast to P2P network
+	if s.broadcaster != nil {
+		go func() {
+			if err := s.broadcaster.BroadcastArticle("new", article); err != nil {
+				s.logger.Warn("Failed to broadcast article", "article_id", article.ID, "error", err)
+			}
+		}()
 	}
 
 	// Index for search
@@ -326,4 +349,41 @@ func (s *ArticleService) VerifySignature(ctx context.Context, cid string) (bool,
 	}
 
 	return true, nil
+}
+
+// HandleIncomingArticle processes an article received from the P2P network
+// It verifies the signature and persists it if it's new.
+func (s *ArticleService) HandleIncomingArticle(article *domain.Article) error {
+	s.logger.Info("Received article from P2P network", "article_id", article.ID, "cid", article.CID)
+
+	// 1. Check if we already have it
+	_, err := s.articleRepo.GetByID(context.Background(), article.ID)
+	if err == nil {
+		// Already exists, ignore
+		return nil
+	}
+
+	// 2. Verify Signature
+	if err := s.signer.VerifyArticle(article); err != nil {
+		s.logger.Warn("Invalid signature on incoming article", "article_id", article.ID, "error", err)
+		return err
+	}
+
+	// 3. Persist to local DB
+	// We use a background context because this is event-driven
+	ctx := context.Background()
+	if err := s.articleRepo.Create(ctx, article); err != nil {
+		s.logger.Error("Failed to save incoming article", "error", err)
+		return err
+	}
+
+	// 4. Index for search
+	if s.indexer != nil {
+		if err := s.indexer.IndexArticle(ctx, article); err != nil {
+			s.logger.Warn("Failed to index incoming article", "error", err)
+		}
+	}
+
+	s.logger.Info("Saved new article from peer", "title", article.Title)
+	return nil
 }

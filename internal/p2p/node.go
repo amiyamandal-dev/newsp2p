@@ -3,6 +3,8 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -71,11 +73,11 @@ func DefaultConfig() *Config {
 func NewP2PNode(ctx context.Context, cfg *Config, log *logger.Logger) (*P2PNode, error) {
 	ctx, cancel := context.WithCancel(ctx)
 
-	// Generate identity
-	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, -1)
+	// Load or generate identity
+	privKey, err := loadOrGenerateKey("data/node_key")
 	if err != nil {
 		cancel()
-		return nil, fmt.Errorf("failed to generate key pair: %w", err)
+		return nil, fmt.Errorf("failed to load or generate key: %w", err)
 	}
 
 	// Parse listen addresses
@@ -163,6 +165,45 @@ func NewP2PNode(ctx context.Context, cfg *Config, log *logger.Logger) (*P2PNode,
 	go node.findPeers(cfg.Rendezvous)
 
 	return node, nil
+}
+
+// loadOrGenerateKey loads a private key from file or generates a new one
+func loadOrGenerateKey(path string) (crypto.PrivKey, error) {
+	// Ensure directory exists
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return nil, fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	// Try to read key from file
+	if _, err := os.Stat(path); err == nil {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read key file: %w", err)
+		}
+		privKey, err := crypto.UnmarshalPrivateKey(data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal private key: %w", err)
+		}
+		return privKey, nil
+	}
+
+	// Generate new key
+	privKey, _, err := crypto.GenerateKeyPair(crypto.Ed25519, -1)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate key pair: %w", err)
+	}
+
+	// Save key to file
+	data, err := crypto.MarshalPrivateKey(privKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal private key: %w", err)
+	}
+
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		return nil, fmt.Errorf("failed to write key file: %w", err)
+	}
+
+	return privKey, nil
 }
 
 // connectToBootstrapPeers connects to bootstrap peers

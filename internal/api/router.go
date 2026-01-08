@@ -7,6 +7,7 @@ import (
 	"github.com/amiyamandal-dev/newsp2p/internal/api/middleware"
 	"github.com/amiyamandal-dev/newsp2p/internal/auth"
 	"github.com/amiyamandal-dev/newsp2p/internal/config"
+	"github.com/amiyamandal-dev/newsp2p/internal/service"
 	"github.com/amiyamandal-dev/newsp2p/internal/web"
 	"github.com/amiyamandal-dev/newsp2p/pkg/logger"
 )
@@ -21,6 +22,7 @@ type Router struct {
 	healthHandler  *handlers.HealthHandler
 	webHandler     *web.WebHandler
 	jwtManager     *auth.JWTManager
+	userService    *service.UserService
 	cfg            *config.Config
 	logger         *logger.Logger
 }
@@ -34,6 +36,7 @@ func NewRouter(
 	healthHandler *handlers.HealthHandler,
 	webHandler *web.WebHandler,
 	jwtManager *auth.JWTManager,
+	userService *service.UserService,
 	cfg *config.Config,
 	logger *logger.Logger,
 ) *Router {
@@ -45,6 +48,7 @@ func NewRouter(
 		healthHandler:  healthHandler,
 		webHandler:     webHandler,
 		jwtManager:     jwtManager,
+		userService:    userService,
 		cfg:            cfg,
 		logger:         logger,
 	}
@@ -74,11 +78,18 @@ func (r *Router) Setup() *gin.Engine {
 
 	// Web UI routes (if webHandler is available)
 	if r.webHandler != nil {
+		// Apply web auth middleware
+		r.engine.Use(web.AuthMiddleware(r.jwtManager, r.userService))
+
 		r.engine.GET("/", r.webHandler.HomePage)
 		r.engine.GET("/explore", r.webHandler.ExplorePage)
 		r.engine.GET("/login", r.webHandler.LoginPage)
+		r.engine.POST("/login", r.webHandler.WebLogin)
+		r.engine.GET("/logout", r.webHandler.WebLogout)
 		r.engine.GET("/register", r.webHandler.RegisterPage)
+		r.engine.POST("/register", r.webHandler.WebRegister)
 		r.engine.GET("/create", r.webHandler.CreateArticlePage)
+		r.engine.POST("/create", r.webHandler.WebCreateArticle)
 		r.engine.GET("/article/:cid", r.webHandler.ArticlePage)
 		r.engine.GET("/network", r.webHandler.NetworkPage)
 	}

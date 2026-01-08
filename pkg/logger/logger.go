@@ -15,13 +15,24 @@ type Logger struct {
 // New creates a new logger with the specified level and format
 func New(level, format string) (*Logger, error) {
 	var zapConfig zap.Config
+	var opts []zap.Option
+
+	opts = append(opts, zap.AddCallerSkip(1))
 
 	// Configure based on format
 	if format == "json" {
 		zapConfig = zap.NewProductionConfig()
+		zapConfig.EncoderConfig.TimeKey = "timestamp"
+		zapConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		opts = append(opts, zap.AddStacktrace(zapcore.ErrorLevel))
 	} else {
 		zapConfig = zap.NewDevelopmentConfig()
 		zapConfig.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		zapConfig.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("15:04:05.000")
+		zapConfig.EncoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
+		zapConfig.EncoderConfig.ConsoleSeparator = " "
+		// Disable stacktrace in dev mode to keep it clean (unless panic)
+		zapConfig.DisableStacktrace = true
 	}
 
 	// Set log level
@@ -31,15 +42,8 @@ func New(level, format string) (*Logger, error) {
 	}
 	zapConfig.Level = zap.NewAtomicLevelAt(zapLevel)
 
-	// Configure time encoding
-	zapConfig.EncoderConfig.TimeKey = "timestamp"
-	zapConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-
 	// Build logger
-	zapLogger, err := zapConfig.Build(
-		zap.AddCallerSkip(1), // Skip one level to show correct caller
-		zap.AddStacktrace(zapcore.ErrorLevel),
-	)
+	zapLogger, err := zapConfig.Build(opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build logger: %w", err)
 	}

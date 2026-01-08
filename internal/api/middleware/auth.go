@@ -12,23 +12,32 @@ import (
 // AuthMiddleware creates JWT authentication middleware
 func AuthMiddleware(jwtManager *auth.JWTManager) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		var token string
+
 		// Get token from Authorization header
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			response.Unauthorized(c, "Missing authorization header")
+		if authHeader != "" {
+			// Extract token from "Bearer <token>" format
+			parts := strings.Split(authHeader, " ")
+			if len(parts) == 2 && parts[0] == "Bearer" {
+				token = parts[1]
+			}
+		}
+
+		// If header missing or invalid, check cookie
+		if token == "" {
+			cookieToken, err := c.Cookie("access_token")
+			if err == nil && cookieToken != "" {
+				token = cookieToken
+			}
+		}
+
+		// If still no token, unauthorized
+		if token == "" {
+			response.Unauthorized(c, "Missing authorization")
 			c.Abort()
 			return
 		}
-
-		// Extract token from "Bearer <token>" format
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			response.Unauthorized(c, "Invalid authorization header format")
-			c.Abort()
-			return
-		}
-
-		token := parts[1]
 
 		// Validate token
 		claims, err := jwtManager.ValidateToken(token)

@@ -7,21 +7,21 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/amiyamandal-dev/newsp2p/internal/ipfs"
-	"github.com/amiyamandal-dev/newsp2p/internal/repository/sqlite"
+	"github.com/amiyamandal-dev/newsp2p/internal/repository/badger"
 	"github.com/amiyamandal-dev/newsp2p/internal/search"
 	"github.com/amiyamandal-dev/newsp2p/pkg/logger"
 )
 
 // HealthHandler handles health check requests
 type HealthHandler struct {
-	db          *sqlite.DB
+	db          *badger.DB
 	ipfsClient  *ipfs.Client
 	searchIndex search.Index
 	logger      *logger.Logger
 }
 
 // NewHealthHandler creates a new health handler
-func NewHealthHandler(db *sqlite.DB, ipfsClient *ipfs.Client, searchIndex search.Index, logger *logger.Logger) *HealthHandler {
+func NewHealthHandler(db *badger.DB, ipfsClient *ipfs.Client, searchIndex search.Index, logger *logger.Logger) *HealthHandler {
 	return &HealthHandler{
 		db:          db,
 		ipfsClient:  ipfsClient,
