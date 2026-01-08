@@ -34,6 +34,7 @@ type SearchQuery struct {
 // SearchResult represents a search result
 type SearchResult struct {
 	Articles   []*domain.Article
+	IDs        []string // Document IDs from search (for fetching full articles)
 	Total      int
 	Page       int
 	Limit      int

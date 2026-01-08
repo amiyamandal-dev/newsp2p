@@ -79,8 +79,9 @@ func (s *UserService) Register(ctx context.Context, req *domain.UserRegisterRequ
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	// Encrypt private key (in production, use proper encryption)
-	encryptedPrivateKey, err := crypto.EncryptPrivateKey(keyPair.PrivateKey, req.Password)
+	// Encrypt private key using password hash as the encryption key
+	// This allows decryption later using the stored password hash
+	encryptedPrivateKey, err := crypto.EncryptPrivateKey(keyPair.PrivateKey, string(passwordHash))
 	if err != nil {
 		s.logger.Error("Failed to encrypt private key", "error", err)
 		return nil, fmt.Errorf("failed to encrypt private key: %w", err)

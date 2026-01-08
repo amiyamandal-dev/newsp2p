@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
@@ -18,6 +19,7 @@ import (
 // BleveIndex implements the Index interface using Bleve
 type BleveIndex struct {
 	index  bleve.Index
+	mu     sync.RWMutex // Protects concurrent access to the index
 	logger *logger.Logger
 }
 
@@ -121,6 +123,9 @@ func (b *BleveIndex) Close() error {
 
 // IndexArticle indexes an article
 func (b *BleveIndex) IndexArticle(ctx context.Context, article *domain.Article) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	doc := ArticleToDocument(article)
 
 	if err := b.index.Index(article.ID, doc); err != nil {
@@ -140,6 +145,9 @@ func (b *BleveIndex) UpdateArticle(ctx context.Context, article *domain.Article)
 
 // DeleteArticle removes an article from the index
 func (b *BleveIndex) DeleteArticle(ctx context.Context, articleID string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	if err := b.index.Delete(articleID); err != nil {
 		b.logger.Error("Failed to delete article from index", "article_id", articleID, "error", err)
 		return fmt.Errorf("failed to delete from index: %w", err)
@@ -151,6 +159,9 @@ func (b *BleveIndex) DeleteArticle(ctx context.Context, articleID string) error 
 
 // Search searches the index
 func (b *BleveIndex) Search(ctx context.Context, query *SearchQuery) (*SearchResult, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
 	startTime := time.Now()
 
 	// Build search query
@@ -182,9 +193,11 @@ func (b *BleveIndex) Search(ctx context.Context, query *SearchQuery) (*SearchRes
 
 	queryTime := time.Since(startTime).Milliseconds()
 
-	// Note: We're returning empty articles array here because Bleve only returns IDs
-	// The actual articles should be fetched from the repository using the IDs
-	// This is handled by the search service
+	// Extract document IDs from search results
+	ids := make([]string, 0, len(searchResults.Hits))
+	for _, hit := range searchResults.Hits {
+		ids = append(ids, hit.ID)
+	}
 
 	totalPages := int(searchResults.Total) / query.Limit
 	if int(searchResults.Total)%query.Limit > 0 {
@@ -193,6 +206,7 @@ func (b *BleveIndex) Search(ctx context.Context, query *SearchQuery) (*SearchRes
 
 	result := &SearchResult{
 		Articles:   make([]*domain.Article, 0),
+		IDs:        ids, // Populate IDs for the search service to fetch full articles
 		Total:      int(searchResults.Total),
 		Page:       query.Page,
 		Limit:      query.Limit,
@@ -203,11 +217,9 @@ func (b *BleveIndex) Search(ctx context.Context, query *SearchQuery) (*SearchRes
 	b.logger.Debug("Search completed",
 		"query", query.Query,
 		"results", searchResults.Total,
+		"ids_found", len(ids),
 		"time_ms", queryTime,
 	)
-
-	// Store the IDs temporarily (will be used by search service)
-	// For now, we'll need to modify the approach in the service layer
 
 	return result, nil
 }

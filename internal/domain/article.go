@@ -45,20 +45,56 @@ func (a *Article) GetSignableContent() ([]byte, error) {
 	return json.Marshal(content)
 }
 
+// AllowedCategories defines valid article categories
+var AllowedCategories = map[string]bool{
+	"":              true, // empty is allowed
+	"news":          true,
+	"technology":    true,
+	"science":       true,
+	"politics":      true,
+	"business":      true,
+	"sports":        true,
+	"health":        true,
+	"entertainment": true,
+	"opinion":       true,
+	"world":         true,
+	"local":         true,
+	"other":         true,
+}
+
 // Validate validates the article fields
 func (a *Article) Validate() error {
 	if a.Title == "" {
-		return ErrInvalidArticle
+		return NewValidationError("title", "title is required")
 	}
 	if len(a.Title) > 200 {
-		return ErrInvalidArticle
+		return NewValidationError("title", "title must be at most 200 characters")
 	}
 	if a.Body == "" {
-		return ErrInvalidArticle
+		return NewValidationError("body", "body is required")
 	}
 	if a.Author == "" {
-		return ErrInvalidArticle
+		return NewValidationError("author", "author is required")
 	}
+
+	// Validate tags
+	if len(a.Tags) > 10 {
+		return NewValidationError("tags", "maximum 10 tags allowed")
+	}
+	for _, tag := range a.Tags {
+		if len(tag) > 50 {
+			return NewValidationError("tags", "each tag must be at most 50 characters")
+		}
+		if tag == "" {
+			return NewValidationError("tags", "empty tags are not allowed")
+		}
+	}
+
+	// Validate category
+	if !AllowedCategories[a.Category] {
+		return NewValidationError("category", "invalid category")
+	}
+
 	return nil
 }
 

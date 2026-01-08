@@ -1,9 +1,6 @@
 package handlers
 
 import (
-	"strconv"
-	"time"
-
 	"github.com/gin-gonic/gin"
 
 	"github.com/amiyamandal-dev/newsp2p/internal/api/middleware"
@@ -76,29 +73,25 @@ func (h *ArticleHandler) GetByCID(c *gin.Context) {
 
 // List retrieves articles with pagination and filtering
 func (h *ArticleHandler) List(c *gin.Context) {
-	// Parse query parameters
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	author := c.Query("author")
-	category := c.Query("category")
-	fromDateStr := c.Query("from")
-	toDateStr := c.Query("to")
+	parser := NewQueryParamParser(c)
 
-	var fromDate, toDate time.Time
-	if fromDateStr != "" {
-		fromDate, _ = time.Parse(time.RFC3339, fromDateStr)
-	}
-	if toDateStr != "" {
-		toDate, _ = time.Parse(time.RFC3339, toDateStr)
+	pagination := parser.Pagination(20)
+	dateRange := parser.DateRange("from", "to")
+	author := parser.String("author", "")
+	category := parser.String("category", "")
+
+	if err := parser.Error(); err != nil {
+		response.BadRequest(c, err.Error())
+		return
 	}
 
 	filter := &domain.ArticleListFilter{
 		Author:   author,
 		Category: category,
-		FromDate: fromDate,
-		ToDate:   toDate,
-		Page:     page,
-		Limit:    limit,
+		FromDate: dateRange.From,
+		ToDate:   dateRange.To,
+		Page:     pagination.Page,
+		Limit:    pagination.Limit,
 	}
 
 	articles, total, err := h.articleService.List(c.Request.Context(), filter)
@@ -108,7 +101,7 @@ func (h *ArticleHandler) List(c *gin.Context) {
 		return
 	}
 
-	response.Paginated(c, articles, page, limit, total)
+	response.Paginated(c, articles, pagination.Page, pagination.Limit, total)
 }
 
 // Update handles article updates

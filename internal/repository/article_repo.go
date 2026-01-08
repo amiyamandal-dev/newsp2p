@@ -31,4 +31,7 @@ type ArticleRepository interface {
 
 	// ListByAuthor retrieves articles by author with pagination
 	ListByAuthor(ctx context.Context, author string, page, limit int) ([]*domain.Article, int, error)
+
+	// GetByIDs retrieves articles by a list of IDs (for search results)
+	GetByIDs(ctx context.Context, ids []string) ([]*domain.Article, error)
 }

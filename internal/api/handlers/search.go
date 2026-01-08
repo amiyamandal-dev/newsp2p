@@ -1,10 +1,6 @@
 package handlers
 
 import (
-	"strconv"
-	"strings"
-	"time"
-
 	"github.com/gin-gonic/gin"
 
 	"github.com/amiyamandal-dev/newsp2p/internal/search"
@@ -29,29 +25,18 @@ func NewSearchHandler(searchService *service.SearchService, logger *logger.Logge
 
 // Search performs a search query
 func (h *SearchHandler) Search(c *gin.Context) {
-	// Parse query parameters
-	q := c.Query("q")
-	author := c.Query("author")
-	category := c.Query("category")
-	tagsStr := c.Query("tags")
-	fromDateStr := c.Query("from")
-	toDateStr := c.Query("to")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	parser := NewQueryParamParser(c)
 
-	// Parse tags
-	var tags []string
-	if tagsStr != "" {
-		tags = strings.Split(tagsStr, ",")
-	}
+	q := parser.String("q", "")
+	author := parser.String("author", "")
+	category := parser.String("category", "")
+	tags := parser.Tags("tags")
+	pagination := parser.Pagination(20)
+	dateRange := parser.DateRange("from", "to")
 
-	// Parse dates
-	var fromDate, toDate time.Time
-	if fromDateStr != "" {
-		fromDate, _ = time.Parse(time.RFC3339, fromDateStr)
-	}
-	if toDateStr != "" {
-		toDate, _ = time.Parse(time.RFC3339, toDateStr)
+	if err := parser.Error(); err != nil {
+		response.BadRequest(c, err.Error())
+		return
 	}
 
 	// Build search query
@@ -60,10 +45,10 @@ func (h *SearchHandler) Search(c *gin.Context) {
 		Author:   author,
 		Category: category,
 		Tags:     tags,
-		FromDate: fromDate,
-		ToDate:   toDate,
-		Page:     page,
-		Limit:    limit,
+		FromDate: dateRange.From,
+		ToDate:   dateRange.To,
+		Page:     pagination.Page,
+		Limit:    pagination.Limit,
 	}
 
 	// Perform search

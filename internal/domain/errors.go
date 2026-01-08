@@ -1,6 +1,24 @@
 package domain
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
+
+// ValidationError provides detailed validation error information
+type ValidationError struct {
+	Field   string
+	Message string
+}
+
+func (e *ValidationError) Error() string {
+	return fmt.Sprintf("validation failed: %s - %s", e.Field, e.Message)
+}
+
+// NewValidationError creates a new validation error
+func NewValidationError(field, message string) *ValidationError {
+	return &ValidationError{Field: field, Message: message}
+}
 
 var (
 	// Article errors

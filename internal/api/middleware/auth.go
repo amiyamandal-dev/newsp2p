@@ -49,18 +49,26 @@ func AuthMiddleware(jwtManager *auth.JWTManager) gin.HandlerFunc {
 
 // GetUserID retrieves the user ID from the request context
 func GetUserID(c *gin.Context) string {
-	userID, _ := c.Get("user_id")
-	if userID == nil {
+	userID, exists := c.Get("user_id")
+	if !exists {
 		return ""
 	}
-	return userID.(string)
+	str, ok := userID.(string)
+	if !ok {
+		return ""
+	}
+	return str
 }
 
 // GetUsername retrieves the username from the request context
 func GetUsername(c *gin.Context) string {
-	username, _ := c.Get("username")
-	if username == nil {
+	username, exists := c.Get("username")
+	if !exists {
 		return ""
 	}
-	return username.(string)
+	str, ok := username.(string)
+	if !ok {
+		return ""
+	}
+	return str
 }

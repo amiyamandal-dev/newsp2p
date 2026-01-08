@@ -64,8 +64,10 @@ func (s *ArticleService) Create(ctx context.Context, req *domain.ArticleCreateRe
 		return nil, domain.ErrUserNotActive
 	}
 
-	// Decrypt private key
-	privateKey, err := crypto.PrivateKeyFromString(user.PrivateKey)
+	// Decrypt private key using password hash as key derivation material
+	// The private key was encrypted during registration with the user's password
+	// We use the password hash as a secure key since we don't have the original password
+	privateKey, err := crypto.DecryptPrivateKey(user.PrivateKey, user.PasswordHash)
 	if err != nil {
 		s.logger.Error("Failed to decrypt private key", "user_id", userID, "error", err)
 		return nil, fmt.Errorf("failed to decrypt private key: %w", err)
@@ -243,6 +245,7 @@ func (s *ArticleService) Update(ctx context.Context, id string, req *domain.Arti
 	if req.Category != "" {
 		article.Category = req.Category
 	}
+	article.UpdatedAt = time.Now()
 
 	// Validate
 	if err := article.Validate(); err != nil {

@@ -10,6 +10,63 @@ import (
 	"github.com/amiyamandal-dev/newsp2p/internal/domain"
 )
 
+// articleColumns defines the standard SELECT columns for articles
+const articleColumns = `id, cid, title, body, author, author_pubkey, signature, timestamp, tags, category, version, created_at, updated_at`
+
+// scanner interface for scanning rows
+type scanner interface {
+	Scan(dest ...any) error
+}
+
+// scanArticle scans a single row into an Article struct
+func scanArticle(row scanner) (*domain.Article, error) {
+	var article domain.Article
+	var tagsJSON string
+
+	err := row.Scan(
+		&article.ID,
+		&article.CID,
+		&article.Title,
+		&article.Body,
+		&article.Author,
+		&article.AuthorPubKey,
+		&article.Signature,
+		&article.Timestamp,
+		&tagsJSON,
+		&article.Category,
+		&article.Version,
+		&article.CreatedAt,
+		&article.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if tagsJSON != "" {
+		if err := json.Unmarshal([]byte(tagsJSON), &article.Tags); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal tags: %w", err)
+		}
+	}
+
+	return &article, nil
+}
+
+// scanArticles scans multiple rows into an Article slice
+func scanArticles(rows *sql.Rows) ([]*domain.Article, error) {
+	var articles []*domain.Article
+	for rows.Next() {
+		article, err := scanArticle(rows)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan article: %w", err)
+		}
+		articles = append(articles, article)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating articles: %w", err)
+	}
+	return articles, nil
+}
+
 // ArticleRepo implements the ArticleRepository interface using SQLite
 type ArticleRepo struct {
 	db *DB
@@ -57,31 +114,9 @@ func (r *ArticleRepo) Create(ctx context.Context, article *domain.Article) error
 
 // GetByID retrieves an article by ID
 func (r *ArticleRepo) GetByID(ctx context.Context, id string) (*domain.Article, error) {
-	query := `
-		SELECT id, cid, title, body, author, author_pubkey, signature, timestamp, tags, category, version, created_at, updated_at
-		FROM articles
-		WHERE id = ?
-	`
+	query := fmt.Sprintf(`SELECT %s FROM articles WHERE id = ?`, articleColumns)
 
-	var article domain.Article
-	var tagsJSON string
-
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&article.ID,
-		&article.CID,
-		&article.Title,
-		&article.Body,
-		&article.Author,
-		&article.AuthorPubKey,
-		&article.Signature,
-		&article.Timestamp,
-		&tagsJSON,
-		&article.Category,
-		&article.Version,
-		&article.CreatedAt,
-		&article.UpdatedAt,
-	)
-
+	article, err := scanArticle(r.db.QueryRowContext(ctx, query, id))
 	if err == sql.ErrNoRows {
 		return nil, domain.ErrArticleNotFound
 	}
@@ -89,42 +124,14 @@ func (r *ArticleRepo) GetByID(ctx context.Context, id string) (*domain.Article, 
 		return nil, fmt.Errorf("failed to get article: %w", err)
 	}
 
-	if tagsJSON != "" {
-		if err := json.Unmarshal([]byte(tagsJSON), &article.Tags); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal tags: %w", err)
-		}
-	}
-
-	return &article, nil
+	return article, nil
 }
 
 // GetByCID retrieves an article by CID
 func (r *ArticleRepo) GetByCID(ctx context.Context, cid string) (*domain.Article, error) {
-	query := `
-		SELECT id, cid, title, body, author, author_pubkey, signature, timestamp, tags, category, version, created_at, updated_at
-		FROM articles
-		WHERE cid = ?
-	`
+	query := fmt.Sprintf(`SELECT %s FROM articles WHERE cid = ?`, articleColumns)
 
-	var article domain.Article
-	var tagsJSON string
-
-	err := r.db.QueryRowContext(ctx, query, cid).Scan(
-		&article.ID,
-		&article.CID,
-		&article.Title,
-		&article.Body,
-		&article.Author,
-		&article.AuthorPubKey,
-		&article.Signature,
-		&article.Timestamp,
-		&tagsJSON,
-		&article.Category,
-		&article.Version,
-		&article.CreatedAt,
-		&article.UpdatedAt,
-	)
-
+	article, err := scanArticle(r.db.QueryRowContext(ctx, query, cid))
 	if err == sql.ErrNoRows {
 		return nil, domain.ErrArticleNotFound
 	}
@@ -132,13 +139,7 @@ func (r *ArticleRepo) GetByCID(ctx context.Context, cid string) (*domain.Article
 		return nil, fmt.Errorf("failed to get article: %w", err)
 	}
 
-	if tagsJSON != "" {
-		if err := json.Unmarshal([]byte(tagsJSON), &article.Tags); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal tags: %w", err)
-		}
-	}
-
-	return &article, nil
+	return article, nil
 }
 
 // Update updates an existing article
@@ -150,7 +151,7 @@ func (r *ArticleRepo) Update(ctx context.Context, article *domain.Article) error
 
 	query := `
 		UPDATE articles
-		SET title = ?, body = ?, tags = ?, category = ?, version = version + 1
+		SET title = ?, body = ?, tags = ?, category = ?, version = version + 1, updated_at = ?
 		WHERE id = ?
 	`
 
@@ -159,6 +160,7 @@ func (r *ArticleRepo) Update(ctx context.Context, article *domain.Article) error
 		article.Body,
 		string(tagsJSON),
 		article.Category,
+		article.UpdatedAt,
 		article.ID,
 	)
 
@@ -239,13 +241,8 @@ func (r *ArticleRepo) List(ctx context.Context, filter *domain.ArticleListFilter
 
 	// Get articles with pagination
 	offset := (filter.Page - 1) * filter.Limit
-	query := fmt.Sprintf(`
-		SELECT id, cid, title, body, author, author_pubkey, signature, timestamp, tags, category, version, created_at, updated_at
-		FROM articles
-		%s
-		ORDER BY timestamp DESC
-		LIMIT ? OFFSET ?
-	`, whereClause)
+	query := fmt.Sprintf(`SELECT %s FROM articles %s ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
+		articleColumns, whereClause)
 
 	args = append(args, filter.Limit, offset)
 
@@ -255,42 +252,9 @@ func (r *ArticleRepo) List(ctx context.Context, filter *domain.ArticleListFilter
 	}
 	defer rows.Close()
 
-	var articles []*domain.Article
-	for rows.Next() {
-		var article domain.Article
-		var tagsJSON string
-
-		err := rows.Scan(
-			&article.ID,
-			&article.CID,
-			&article.Title,
-			&article.Body,
-			&article.Author,
-			&article.AuthorPubKey,
-			&article.Signature,
-			&article.Timestamp,
-			&tagsJSON,
-			&article.Category,
-			&article.Version,
-			&article.CreatedAt,
-			&article.UpdatedAt,
-		)
-
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to scan article: %w", err)
-		}
-
-		if tagsJSON != "" {
-			if err := json.Unmarshal([]byte(tagsJSON), &article.Tags); err != nil {
-				return nil, 0, fmt.Errorf("failed to unmarshal tags: %w", err)
-			}
-		}
-
-		articles = append(articles, &article)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("error iterating articles: %w", err)
+	articles, err := scanArticles(rows)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	return articles, total, nil
@@ -298,12 +262,7 @@ func (r *ArticleRepo) List(ctx context.Context, filter *domain.ArticleListFilter
 
 // ListRecent retrieves recent articles for a feed
 func (r *ArticleRepo) ListRecent(ctx context.Context, limit int) ([]*domain.Article, error) {
-	query := `
-		SELECT id, cid, title, body, author, author_pubkey, signature, timestamp, tags, category, version, created_at, updated_at
-		FROM articles
-		ORDER BY created_at DESC
-		LIMIT ?
-	`
+	query := fmt.Sprintf(`SELECT %s FROM articles ORDER BY created_at DESC LIMIT ?`, articleColumns)
 
 	rows, err := r.db.QueryContext(ctx, query, limit)
 	if err != nil {
@@ -311,45 +270,7 @@ func (r *ArticleRepo) ListRecent(ctx context.Context, limit int) ([]*domain.Arti
 	}
 	defer rows.Close()
 
-	var articles []*domain.Article
-	for rows.Next() {
-		var article domain.Article
-		var tagsJSON string
-
-		err := rows.Scan(
-			&article.ID,
-			&article.CID,
-			&article.Title,
-			&article.Body,
-			&article.Author,
-			&article.AuthorPubKey,
-			&article.Signature,
-			&article.Timestamp,
-			&tagsJSON,
-			&article.Category,
-			&article.Version,
-			&article.CreatedAt,
-			&article.UpdatedAt,
-		)
-
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan article: %w", err)
-		}
-
-		if tagsJSON != "" {
-			if err := json.Unmarshal([]byte(tagsJSON), &article.Tags); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal tags: %w", err)
-			}
-		}
-
-		articles = append(articles, &article)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating articles: %w", err)
-	}
-
-	return articles, nil
+	return scanArticles(rows)
 }
 
 // ListByAuthor retrieves articles by author with pagination
@@ -363,13 +284,8 @@ func (r *ArticleRepo) ListByAuthor(ctx context.Context, author string, page, lim
 
 	// Get articles
 	offset := (page - 1) * limit
-	query := `
-		SELECT id, cid, title, body, author, author_pubkey, signature, timestamp, tags, category, version, created_at, updated_at
-		FROM articles
-		WHERE author = ?
-		ORDER BY timestamp DESC
-		LIMIT ? OFFSET ?
-	`
+	query := fmt.Sprintf(`SELECT %s FROM articles WHERE author = ? ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
+		articleColumns)
 
 	rows, err := r.db.QueryContext(ctx, query, author, limit, offset)
 	if err != nil {
@@ -377,43 +293,36 @@ func (r *ArticleRepo) ListByAuthor(ctx context.Context, author string, page, lim
 	}
 	defer rows.Close()
 
-	var articles []*domain.Article
-	for rows.Next() {
-		var article domain.Article
-		var tagsJSON string
-
-		err := rows.Scan(
-			&article.ID,
-			&article.CID,
-			&article.Title,
-			&article.Body,
-			&article.Author,
-			&article.AuthorPubKey,
-			&article.Signature,
-			&article.Timestamp,
-			&tagsJSON,
-			&article.Category,
-			&article.Version,
-			&article.CreatedAt,
-			&article.UpdatedAt,
-		)
-
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to scan article: %w", err)
-		}
-
-		if tagsJSON != "" {
-			if err := json.Unmarshal([]byte(tagsJSON), &article.Tags); err != nil {
-				return nil, 0, fmt.Errorf("failed to unmarshal tags: %w", err)
-			}
-		}
-
-		articles = append(articles, &article)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("error iterating articles: %w", err)
+	articles, err := scanArticles(rows)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	return articles, total, nil
+}
+
+// GetByIDs retrieves articles by a list of IDs (for search results)
+func (r *ArticleRepo) GetByIDs(ctx context.Context, ids []string) ([]*domain.Article, error) {
+	if len(ids) == 0 {
+		return []*domain.Article{}, nil
+	}
+
+	// Build placeholders
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	query := fmt.Sprintf(`SELECT %s FROM articles WHERE id IN (%s)`,
+		articleColumns, strings.Join(placeholders, ","))
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query articles by IDs: %w", err)
+	}
+	defer rows.Close()
+
+	return scanArticles(rows)
 }

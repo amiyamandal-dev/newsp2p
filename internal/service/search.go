@@ -31,11 +31,45 @@ func NewSearchService(
 
 // Search performs a full-text search with filtering
 func (s *SearchService) Search(ctx context.Context, query *search.SearchQuery) (*search.SearchResult, error) {
-	// Perform search using the index
-	// Note: For a full implementation, we'd need to modify the Bleve search
-	// to return article IDs, then fetch full articles from the repository
-	// For now, we'll use the repository's List method with filters
+	// Set defaults to avoid division by zero
+	if query.Page < 1 {
+		query.Page = 1
+	}
+	if query.Limit < 1 {
+		query.Limit = 20
+	}
+	if query.Limit > 100 {
+		query.Limit = 100
+	}
 
+	// If there's a text query, use the full-text search index
+	if query.Query != "" {
+		result, err := s.index.Search(ctx, query)
+		if err != nil {
+			s.logger.Error("Full-text search failed", "error", err)
+			return nil, err
+		}
+
+		// Bleve returns IDs, fetch full articles from repository
+		if len(result.IDs) > 0 {
+			articles, err := s.articleRepo.GetByIDs(ctx, result.IDs)
+			if err != nil {
+				s.logger.Error("Failed to fetch articles by IDs", "error", err)
+				return nil, err
+			}
+			result.Articles = articles
+		}
+
+		s.logger.Debug("Full-text search completed",
+			"query", query.Query,
+			"results", result.Total,
+			"articles_fetched", len(result.Articles),
+			"page", query.Page,
+		)
+		return result, nil
+	}
+
+	// Fall back to filter-based search when no text query
 	filter := &domain.ArticleListFilter{
 		Author:   query.Author,
 		Category: query.Category,
@@ -52,9 +86,12 @@ func (s *SearchService) Search(ctx context.Context, query *search.SearchQuery) (
 		return nil, err
 	}
 
-	totalPages := total / query.Limit
-	if total%query.Limit > 0 {
-		totalPages++
+	totalPages := 0
+	if query.Limit > 0 {
+		totalPages = total / query.Limit
+		if total%query.Limit > 0 {
+			totalPages++
+		}
 	}
 
 	result := &search.SearchResult{
@@ -63,7 +100,7 @@ func (s *SearchService) Search(ctx context.Context, query *search.SearchQuery) (
 		Page:       query.Page,
 		Limit:      query.Limit,
 		TotalPages: totalPages,
-		QueryTime:  0, // TODO: measure query time
+		QueryTime:  0,
 	}
 
 	s.logger.Debug("Search completed",

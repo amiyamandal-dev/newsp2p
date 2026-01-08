@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 
@@ -39,30 +40,54 @@ func (h *HealthHandler) Health(c *gin.Context) {
 // Readiness checks if the service is ready to handle requests
 func (h *HealthHandler) Readiness(c *gin.Context) {
 	ctx := context.Background()
-	checks := make(map[string]interface{})
 
-	// Check database (required)
-	dbHealthy := h.db.HealthCheck() == nil
-	checks["database"] = map[string]interface{}{
-		"healthy":  dbHealthy,
-		"required": true,
-	}
+	var (
+		dbHealthy     bool
+		ipfsHealthy   bool
+		searchHealthy bool
+		searchCount   uint64
+		wg            sync.WaitGroup
+	)
 
-	// Check IPFS (optional - service can run without it)
-	ipfsHealthy := h.ipfsClient.IsHealthy(ctx)
-	checks["ipfs"] = map[string]interface{}{
-		"healthy":  ipfsHealthy,
-		"required": false,
-		"note":     "Optional - some features unavailable if offline",
-	}
+	wg.Add(3)
 
-	// Check search index (required)
-	searchCount, err := h.searchIndex.Count()
-	searchHealthy := err == nil
-	checks["search"] = map[string]interface{}{
-		"healthy":        searchHealthy,
-		"required":       true,
-		"document_count": searchCount,
+	// Check database (required) - in parallel
+	go func() {
+		defer wg.Done()
+		dbHealthy = h.db.HealthCheck() == nil
+	}()
+
+	// Check IPFS (optional) - in parallel
+	go func() {
+		defer wg.Done()
+		ipfsHealthy = h.ipfsClient.IsHealthy(ctx)
+	}()
+
+	// Check search index (required) - in parallel
+	go func() {
+		defer wg.Done()
+		var err error
+		searchCount, err = h.searchIndex.Count()
+		searchHealthy = err == nil
+	}()
+
+	wg.Wait()
+
+	checks := map[string]interface{}{
+		"database": map[string]interface{}{
+			"healthy":  dbHealthy,
+			"required": true,
+		},
+		"ipfs": map[string]interface{}{
+			"healthy":  ipfsHealthy,
+			"required": false,
+			"note":     "Optional - some features unavailable if offline",
+		},
+		"search": map[string]interface{}{
+			"healthy":        searchHealthy,
+			"required":       true,
+			"document_count": searchCount,
+		},
 	}
 
 	// Overall status - only required services must be healthy

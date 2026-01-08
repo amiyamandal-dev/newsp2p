@@ -169,36 +169,6 @@
 
     <!-- Sidebar -->
     <div class="space-y-6">
-        <!-- Trending Tags -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">🔥 Trending Tags</h3>
-            <div class="flex flex-wrap gap-2">
-                {{range .TrendingTags}}
-                <a href="/search?tag={{.}}" class="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900 dark:to-purple-900 text-blue-700 dark:text-blue-200 px-3 py-2 rounded-lg text-sm font-medium hover:from-blue-100 hover:to-purple-100 transition">
-                    #{{.}}
-                </a>
-                {{end}}
-            </div>
-        </div>
-
-        <!-- Top Contributors -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">⭐ Top Contributors</h3>
-            <div class="space-y-4">
-                {{range .TopContributors}}
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <div class="w-8 h-8 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 flex items-center justify-center text-white font-bold text-sm">
-                            {{index .Username 0 | printf "%c" | upper}}
-                        </div>
-                        <span class="ml-3 text-sm font-medium text-gray-900 dark:text-white">{{.Username}}</span>
-                    </div>
-                    <span class="text-sm text-gray-600 dark:text-gray-400">{{.Reputation}} pts</span>
-                </div>
-                {{end}}
-            </div>
-        </div>
-
         <!-- Network Status -->
         <div class="bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
             <h3 class="text-lg font-bold mb-4">🌐 Network Status</h3>

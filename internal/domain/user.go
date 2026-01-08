@@ -1,8 +1,12 @@
 package domain
 
 import (
+	"regexp"
 	"time"
 )
+
+// emailRegex is a simple email validation pattern
+var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 
 // User represents a user in the system
 type User struct {
@@ -19,17 +23,26 @@ type User struct {
 
 // Validate validates the user fields
 func (u *User) Validate() error {
-	if u.Username == "" || len(u.Username) < 3 || len(u.Username) > 50 {
-		return ErrInvalidUser
+	if u.Username == "" {
+		return NewValidationError("username", "username is required")
+	}
+	if len(u.Username) < 3 {
+		return NewValidationError("username", "username must be at least 3 characters")
+	}
+	if len(u.Username) > 50 {
+		return NewValidationError("username", "username must be at most 50 characters")
 	}
 	if u.Email == "" {
-		return ErrInvalidUser
+		return NewValidationError("email", "email is required")
+	}
+	if !emailRegex.MatchString(u.Email) {
+		return NewValidationError("email", "invalid email format")
 	}
 	if u.PasswordHash == "" {
-		return ErrInvalidUser
+		return NewValidationError("password", "password is required")
 	}
 	if u.PublicKey == "" {
-		return ErrInvalidUser
+		return NewValidationError("public_key", "public key is required")
 	}
 	return nil
 }

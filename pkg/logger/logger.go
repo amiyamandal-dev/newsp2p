@@ -146,7 +146,7 @@ func convertToFields(keysAndValues []interface{}) []zap.Field {
 		case bool:
 			fields = append(fields, zap.Bool(key, v))
 		case error:
-			fields = append(fields, zap.Error(v))
+			fields = append(fields, zap.NamedError(key, v))
 		default:
 			fields = append(fields, zap.Any(key, v))
 		}

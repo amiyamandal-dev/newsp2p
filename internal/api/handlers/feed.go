@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"strconv"
-
 	"github.com/gin-gonic/gin"
 
 	"github.com/amiyamandal-dev/newsp2p/internal/domain"
@@ -69,10 +67,15 @@ func (h *FeedHandler) GetArticles(c *gin.Context) {
 		return
 	}
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	parser := NewQueryParamParser(c)
+	pagination := parser.Pagination(20)
 
-	articles, total, err := h.feedService.GetArticles(c.Request.Context(), name, page, limit)
+	if err := parser.Error(); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	articles, total, err := h.feedService.GetArticles(c.Request.Context(), name, pagination.Page, pagination.Limit)
 	if err != nil {
 		if err == domain.ErrFeedNotFound {
 			response.NotFound(c, "Feed not found")
@@ -83,7 +86,7 @@ func (h *FeedHandler) GetArticles(c *gin.Context) {
 		return
 	}
 
-	response.Paginated(c, articles, page, limit, total)
+	response.Paginated(c, articles, pagination.Page, pagination.Limit, total)
 }
 
 // TriggerSync manually triggers a feed sync

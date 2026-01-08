@@ -102,7 +102,7 @@ func (h *WebHandler) HomePage(c *gin.Context) {
 	}
 
 	data := gin.H{
-		"Title": "Home",
+		"Title":    "Home",
 		"Articles": articles,
 		"Stats": gin.H{
 			"TotalArticles": total,
@@ -110,12 +110,6 @@ func (h *WebHandler) HomePage(c *gin.Context) {
 			"IPFSOnline":    true, // TODO: Check actual IPFS status
 			"P2PEnabled":    p2pEnabled,
 			"PeerID":        peerID,
-		},
-		"TrendingTags": []string{"technology", "decentralized", "p2p", "news", "blockchain"},
-		"TopContributors": []gin.H{
-			{"Username": "alice", "Reputation": 85},
-			{"Username": "bob", "Reputation": 72},
-			{"Username": "carol", "Reputation": 68},
 		},
 		"PeerCount": peerCount,
 	}

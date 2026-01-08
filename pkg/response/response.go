@@ -56,9 +56,12 @@ func SuccessWithMessage(c *gin.Context, message string, data interface{}) {
 
 // Paginated sends a paginated response
 func Paginated(c *gin.Context, data interface{}, page, limit, total int) {
-	totalPages := total / limit
-	if total%limit > 0 {
-		totalPages++
+	totalPages := 0
+	if limit > 0 {
+		totalPages = total / limit
+		if total%limit > 0 {
+			totalPages++
+		}
 	}
 
 	c.JSON(http.StatusOK, PaginatedResponse{

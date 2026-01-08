@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3" // SQLite driver
 )
@@ -31,6 +32,8 @@ func New(dbPath string, maxOpenConns, maxIdleConns int) (*DB, error) {
 	// Configure connection pool
 	sqlDB.SetMaxOpenConns(maxOpenConns)
 	sqlDB.SetMaxIdleConns(maxIdleConns)
+	sqlDB.SetConnMaxLifetime(time.Hour)
+	sqlDB.SetConnMaxIdleTime(30 * time.Minute)
 
 	// Test connection
 	if err := sqlDB.Ping(); err != nil {
@@ -49,15 +52,25 @@ func New(dbPath string, maxOpenConns, maxIdleConns int) (*DB, error) {
 
 // runMigrations applies database migrations
 func (db *DB) runMigrations() error {
-	// Read migration file
-	migrationSQL, err := os.ReadFile("migrations/001_initial_schema.sql")
-	if err != nil {
-		return fmt.Errorf("failed to read migration file: %w", err)
+	// List of migration files in order
+	migrations := []string{
+		"migrations/001_initial_schema.sql",
+		"migrations/002_add_composite_indexes.sql",
 	}
 
-	// Execute migration
-	if _, err := db.Exec(string(migrationSQL)); err != nil {
-		return fmt.Errorf("failed to execute migration: %w", err)
+	for _, migrationFile := range migrations {
+		migrationSQL, err := os.ReadFile(migrationFile)
+		if err != nil {
+			// Skip missing migration files (allows for optional migrations)
+			if os.IsNotExist(err) {
+				continue
+			}
+			return fmt.Errorf("failed to read migration file %s: %w", migrationFile, err)
+		}
+
+		if _, err := db.Exec(string(migrationSQL)); err != nil {
+			return fmt.Errorf("failed to execute migration %s: %w", migrationFile, err)
+		}
 	}
 
 	return nil

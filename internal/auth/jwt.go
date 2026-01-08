@@ -85,25 +85,21 @@ func (m *JWTManager) GenerateRefreshToken(userID, username, email string) (strin
 // ValidateToken validates a JWT token and returns the claims
 func (m *JWTManager) ValidateToken(tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		// Validate signing method
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		// Validate signing method is exactly HS256
+		if token.Method != jwt.SigningMethodHS256 {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return m.secret, nil
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse token: %w", err)
+		// jwt.ParseWithClaims already handles expiration validation
+		return nil, fmt.Errorf("invalid token: %w", err)
 	}
 
 	claims, ok := token.Claims.(*Claims)
 	if !ok || !token.Valid {
 		return nil, domain.ErrInvalidToken
-	}
-
-	// Check if token is expired
-	if claims.ExpiresAt != nil && claims.ExpiresAt.Before(time.Now()) {
-		return nil, domain.ErrExpiredToken
 	}
 
 	return claims, nil

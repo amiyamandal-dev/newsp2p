@@ -10,15 +10,15 @@ import (
 
 // Config holds all configuration for the application
 type Config struct {
-	Server    ServerConfig
-	Database  DatabaseConfig
-	IPFS      IPFSConfig
-	Auth      AuthConfig
-	Search    SearchConfig
-	Logging   LoggingConfig
-	RateLimit RateLimitConfig
-	CORS      CORSConfig
-	P2P       P2PConfig
+	Server    ServerConfig    `mapstructure:"server"`
+	Database  DatabaseConfig  `mapstructure:"database"`
+	IPFS      IPFSConfig      `mapstructure:"ipfs"`
+	Auth      AuthConfig      `mapstructure:"auth"`
+	Search    SearchConfig    `mapstructure:"search"`
+	Logging   LoggingConfig   `mapstructure:"logging"`
+	RateLimit RateLimitConfig `mapstructure:"rate_limit"`
+	CORS      CORSConfig      `mapstructure:"cors"`
+	P2P       P2PConfig       `mapstructure:"p2p"`
 }
 
 // ServerConfig contains HTTP server configuration
@@ -156,8 +156,8 @@ func setDefaults() {
 	viper.SetDefault("logging.format", "json")
 
 	// Rate limit defaults
-	viper.SetDefault("rate_limit.requests_per_minute", 100)
-	viper.SetDefault("rate_limit.burst", 20)
+	viper.SetDefault("rate_limit.requests_per_minute", 1000)
+	viper.SetDefault("rate_limit.burst", 100)
 
 	// CORS defaults
 	viper.SetDefault("cors.allowed_origins", []string{"http://localhost:3000"})
