@@ -1,0 +1,210 @@
+{{define "content"}}
+<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Write a New Article</h1>
+        <p class="mt-2 text-gray-600 dark:text-gray-400">
+            Share your news with the decentralized network. Your article will be signed, stored on IPFS, and broadcast to all peers.
+        </p>
+    </div>
+
+    <!-- Article Form -->
+    <form action="/api/v1/articles" method="POST"
+          hx-post="/api/v1/articles"
+          hx-target="#create-result"
+          hx-swap="innerHTML"
+          class="space-y-6">
+
+        <!-- Title Field -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+            <label for="title" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Article Title <span class="text-red-500">*</span>
+            </label>
+            <input id="title"
+                   name="title"
+                   type="text"
+                   required
+                   maxlength="200"
+                   class="w-full px-4 py-3 text-xl font-semibold border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                   placeholder="Enter a compelling title...">
+            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Maximum 200 characters</p>
+        </div>
+
+        <!-- Body Field -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+            <label for="body" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Article Content <span class="text-red-500">*</span>
+            </label>
+            <textarea id="body"
+                      name="body"
+                      required
+                      rows="20"
+                      class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm"
+                      placeholder="Write your article content here. You can use markdown formatting..."></textarea>
+            <div class="mt-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                <span>Markdown supported</span>
+                <span id="word-count">0 words</span>
+            </div>
+        </div>
+
+        <!-- Category and Tags -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Category Field -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+                <label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Category <span class="text-red-500">*</span>
+                </label>
+                <select id="category"
+                        name="category"
+                        required
+                        class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                    <option value="">Select a category...</option>
+                    <option value="technology">Technology</option>
+                    <option value="politics">Politics</option>
+                    <option value="business">Business</option>
+                    <option value="science">Science</option>
+                    <option value="health">Health</option>
+                    <option value="environment">Environment</option>
+                    <option value="culture">Culture</option>
+                    <option value="sports">Sports</option>
+                    <option value="entertainment">Entertainment</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+
+            <!-- Tags Field -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+                <label for="tags" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Tags
+                </label>
+                <input id="tags"
+                       name="tags"
+                       type="text"
+                       class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                       placeholder="blockchain, decentralized, news">
+                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Comma-separated tags for discoverability</p>
+            </div>
+        </div>
+
+        <!-- Response Container -->
+        <div id="create-result"></div>
+
+        <!-- Publishing Info -->
+        <div class="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900 dark:to-purple-900 rounded-xl p-6 border border-blue-200 dark:border-blue-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">What happens when you publish?</h3>
+            <div class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span><strong>Cryptographic Signing:</strong> Your article will be signed with your Ed25519 private key</span>
+                </div>
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span><strong>IPFS Storage:</strong> Content will be uploaded to IPFS and assigned a unique CID</span>
+                </div>
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span><strong>P2P Broadcasting:</strong> Your article will be broadcast to all connected peers</span>
+                </div>
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span><strong>Reputation Boost:</strong> You'll earn +2 reputation points for publishing quality content</span>
+                </div>
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span><strong>Censorship-Resistant:</strong> Once published, your article cannot be deleted by any central authority</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center justify-between">
+            <a href="/" class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                Cancel
+            </a>
+
+            <div class="flex space-x-4">
+                <button type="button"
+                        class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                    Save Draft
+                </button>
+
+                <button type="submit"
+                        class="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition shadow-lg">
+                    <span class="flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        Publish to P2P Network
+                    </span>
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+// Word count
+const bodyField = document.getElementById('body');
+const wordCountDisplay = document.getElementById('word-count');
+
+bodyField.addEventListener('input', function() {
+    const text = this.value.trim();
+    const words = text ? text.split(/\s+/).length : 0;
+    wordCountDisplay.textContent = words + ' words';
+});
+
+// Auto-save draft to localStorage
+let autoSaveTimer;
+function autoSave() {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => {
+        const draft = {
+            title: document.getElementById('title').value,
+            body: document.getElementById('body').value,
+            category: document.getElementById('category').value,
+            tags: document.getElementById('tags').value,
+            timestamp: new Date().toISOString()
+        };
+        localStorage.setItem('article-draft', JSON.stringify(draft));
+        console.log('Draft auto-saved');
+    }, 2000);
+}
+
+document.getElementById('title').addEventListener('input', autoSave);
+document.getElementById('body').addEventListener('input', autoSave);
+document.getElementById('category').addEventListener('change', autoSave);
+document.getElementById('tags').addEventListener('input', autoSave);
+
+// Load draft on page load
+window.addEventListener('load', function() {
+    const draft = localStorage.getItem('article-draft');
+    if (draft) {
+        const data = JSON.parse(draft);
+        if (confirm('Found an auto-saved draft. Would you like to restore it?')) {
+            document.getElementById('title').value = data.title || '';
+            document.getElementById('body').value = data.body || '';
+            document.getElementById('category').value = data.category || '';
+            document.getElementById('tags').value = data.tags || '';
+            bodyField.dispatchEvent(new Event('input')); // Update word count
+        }
+    }
+});
+
+// Clear draft on successful publish
+document.querySelector('form').addEventListener('htmx:afterRequest', function(event) {
+    if (event.detail.successful) {
+        localStorage.removeItem('article-draft');
+    }
+});
+</script>
+{{end}}

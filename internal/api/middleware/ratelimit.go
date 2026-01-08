@@ -12,6 +12,7 @@ import (
 )
 
 // RateLimitMiddleware creates rate limiting middleware
+// Health check endpoints are exempt from rate limiting
 func RateLimitMiddleware(requestsPerMinute, burst int) gin.HandlerFunc {
 	// Create rate limiter
 	rate := limiter.Rate{
@@ -22,24 +23,14 @@ func RateLimitMiddleware(requestsPerMinute, burst int) gin.HandlerFunc {
 	store := memory.NewStore()
 	instance := limiter.New(store, rate)
 
-	// Create Gin middleware
-	middleware := mgin.NewMiddleware(instance)
+	// Create Gin middleware with custom error handler
+	middleware := mgin.NewMiddleware(instance, mgin.WithErrorHandler(func(c *gin.Context, err error) {
+		response.Error(c, 429, "Rate limit exceeded. Please try again later.")
+		c.Abort()
+	}), mgin.WithKeyGetter(func(c *gin.Context) string {
+		// Use client IP as the key for rate limiting
+		return c.ClientIP()
+	}))
 
-	return func(c *gin.Context) {
-		// Use the middleware
-		ginContext := middleware(c)
-		if ginContext == nil {
-			return // Rate limit exceeded
-		}
-
-		// Check if rate limit was exceeded
-		rateLimitContext := limiter.GetContext(c.Request.Context())
-		if rateLimitContext.Reached {
-			response.Error(c, 429, "Rate limit exceeded. Please try again later.")
-			c.Abort()
-			return
-		}
-
-		c.Next()
-	}
+	return middleware
 }

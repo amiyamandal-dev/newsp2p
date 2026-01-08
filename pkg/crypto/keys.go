@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"io"
 )
 
 // KeyPair represents an Ed25519 key pair
@@ -77,4 +78,9 @@ func DecryptPrivateKey(encrypted, password string) (ed25519.PrivateKey, error) {
 	// TODO: Implement proper decryption with AES-GCM + PBKDF2
 	// For now, just base64 decode (NOT SECURE - placeholder)
 	return PrivateKeyFromString(encrypted)
+}
+
+// RandRead reads random bytes
+func RandRead(b []byte) (int, error) {
+	return io.ReadFull(rand.Reader, b)
 }

@@ -10,11 +10,11 @@ var (
 	ErrInvalidSignature     = errors.New("invalid article signature")
 
 	// User errors
-	ErrUserNotFound         = errors.New("user not found")
-	ErrUserAlreadyExists    = errors.New("user already exists")
-	ErrInvalidCredentials   = errors.New("invalid credentials")
-	ErrInvalidUser          = errors.New("invalid user")
-	ErrUserNotActive        = errors.New("user account is not active")
+	ErrUserNotFound       = errors.New("user not found")
+	ErrUserAlreadyExists  = errors.New("user already exists")
+	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrInvalidUser        = errors.New("invalid user")
+	ErrUserNotActive      = errors.New("user account is not active")
 
 	// Feed errors
 	ErrFeedNotFound      = errors.New("feed not found")
@@ -22,10 +22,10 @@ var (
 	ErrInvalidFeed       = errors.New("invalid feed")
 
 	// Auth errors
-	ErrInvalidToken      = errors.New("invalid token")
-	ErrExpiredToken      = errors.New("token has expired")
-	ErrUnauthorized      = errors.New("unauthorized")
-	ErrForbidden         = errors.New("forbidden")
+	ErrInvalidToken = errors.New("invalid token")
+	ErrExpiredToken = errors.New("token has expired")
+	ErrUnauthorized = errors.New("unauthorized")
+	ErrForbidden    = errors.New("forbidden")
 
 	// IPFS errors
 	ErrIPFSUnavailable   = errors.New("IPFS service unavailable")
@@ -34,11 +34,11 @@ var (
 	ErrInvalidCID        = errors.New("invalid CID")
 
 	// Validation errors
-	ErrValidationFailed  = errors.New("validation failed")
-	ErrInvalidInput      = errors.New("invalid input")
+	ErrValidationFailed = errors.New("validation failed")
+	ErrInvalidInput     = errors.New("invalid input")
 
 	// General errors
-	ErrInternal          = errors.New("internal server error")
-	ErrNotFound          = errors.New("resource not found")
-	ErrConflict          = errors.New("resource conflict")
+	ErrInternal = errors.New("internal server error")
+	ErrNotFound = errors.New("resource not found")
+	ErrConflict = errors.New("resource conflict")
 )

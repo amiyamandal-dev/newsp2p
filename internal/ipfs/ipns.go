@@ -46,8 +46,8 @@ func (m *IPNSManager) GenerateKey(ctx context.Context, keyName string) (*KeyInfo
 		}
 	}
 
-	// Generate new key
-	key, err := m.shell.KeyGen(context.Background(), keyName, shell.Ed25519Key)
+	// Generate new key (default key type)
+	key, err := m.shell.KeyGen(context.Background(), keyName)
 	if err != nil {
 		m.logger.Error("Failed to generate key", "key_name", keyName, "error", err)
 		return nil, fmt.Errorf("failed to generate key: %w", err)

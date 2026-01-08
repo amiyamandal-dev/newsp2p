@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	shell "github.com/ipfs/go-ipfs-api"
@@ -15,9 +16,11 @@ import (
 	"github.com/amiyamandal-dev/newsp2p/internal/auth"
 	"github.com/amiyamandal-dev/newsp2p/internal/config"
 	"github.com/amiyamandal-dev/newsp2p/internal/ipfs"
+	"github.com/amiyamandal-dev/newsp2p/internal/p2p"
 	"github.com/amiyamandal-dev/newsp2p/internal/repository/sqlite"
 	"github.com/amiyamandal-dev/newsp2p/internal/search"
 	"github.com/amiyamandal-dev/newsp2p/internal/service"
+	"github.com/amiyamandal-dev/newsp2p/internal/web"
 	"github.com/amiyamandal-dev/newsp2p/pkg/logger"
 )
 
@@ -25,22 +28,30 @@ func main() {
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
+		fmt.Fprintf(os.Stderr, "❌ Failed to load config: %v\n", err)
+		fmt.Fprintf(os.Stderr, "\n💡 Tip: Make sure to set NEWS_AUTH_JWT_SECRET environment variable\n")
+		fmt.Fprintf(os.Stderr, "   Example: export NEWS_AUTH_JWT_SECRET=$(openssl rand -base64 32)\n\n")
 		os.Exit(1)
 	}
 
 	// Initialize logger
 	log, err := logger.New(cfg.Logging.Level, cfg.Logging.Format)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create logger: %v\n", err)
+		fmt.Fprintf(os.Stderr, "❌ Failed to create logger: %v\n", err)
 		os.Exit(1)
 	}
 	defer log.Sync()
 
-	log.Info("Starting distributed news platform server",
+	log.Info("🚀 Starting distributed news platform server",
 		"version", "1.0.0",
 		"mode", cfg.Server.Mode,
 	)
+
+	// Ensure required directories exist
+	if err := ensureDirectories(cfg, log); err != nil {
+		log.Error("Failed to create required directories", "error", err)
+		os.Exit(1)
+	}
 
 	// Initialize database
 	db, err := sqlite.New(
@@ -54,7 +65,7 @@ func main() {
 	}
 	defer db.Close()
 
-	log.Info("Database initialized", "path", cfg.Database.Path)
+	log.Info("✅ Database initialized", "path", cfg.Database.Path)
 
 	// Initialize IPFS client
 	ipfsClient := ipfs.NewClient(
@@ -64,18 +75,70 @@ func main() {
 		log,
 	)
 
-	// Check IPFS connectivity
+	// Check IPFS connectivity (non-blocking)
 	ctx := context.Background()
-	if !ipfsClient.IsHealthy(ctx) {
-		log.Warn("IPFS node is not reachable", "endpoint", cfg.IPFS.APIEndpoint)
-	} else {
+	ipfsHealthy := false
+	if ipfsClient.IsHealthy(ctx) {
 		nodeID, _ := ipfsClient.GetID(ctx)
-		log.Info("Connected to IPFS", "endpoint", cfg.IPFS.APIEndpoint, "node_id", nodeID)
+		log.Info("✅ Connected to IPFS", "endpoint", cfg.IPFS.APIEndpoint, "node_id", nodeID)
+		ipfsHealthy = true
+	} else {
+		log.Warn("⚠️  IPFS node is not reachable - some features will be limited",
+			"endpoint", cfg.IPFS.APIEndpoint,
+		)
+		log.Warn("💡 To start IPFS: ipfs daemon")
 	}
 
 	// Initialize IPNS manager
 	ipfsShell := shell.NewShell(cfg.IPFS.APIEndpoint)
 	ipnsManager := ipfs.NewIPNSManager(ipfsShell, log)
+
+	// Initialize P2P node (if enabled)
+	var p2pNode *p2p.P2PNode
+	var broadcaster *p2p.Broadcaster
+	var reputationSys *p2p.ReputationSystem
+
+	if cfg.P2P.Enabled {
+		p2pCfg := &p2p.Config{
+			ListenAddrs:    cfg.P2P.ListenAddrs,
+			BootstrapPeers: cfg.P2P.BootstrapPeers,
+			Rendezvous:     cfg.P2P.Rendezvous,
+		}
+
+		var err error
+		p2pNode, err = p2p.NewP2PNode(ctx, p2pCfg, log)
+		if err != nil {
+			log.Warn("⚠️  Failed to start P2P node - continuing without P2P", "error", err)
+		} else {
+			log.Info("✅ P2P node started", "peer_id", p2pNode.GetPeerID().String())
+
+			// Initialize broadcaster
+			broadcaster = p2p.NewBroadcaster(p2pNode, log)
+			if err := broadcaster.Start(); err != nil {
+				log.Warn("Failed to start broadcaster", "error", err)
+			} else {
+				log.Info("✅ P2P broadcaster started")
+			}
+
+			// Initialize reputation system
+			reputationSys = p2p.NewReputationSystem(log)
+			log.Info("✅ Reputation system initialized")
+
+			// Use reputation system (prevent unused variable warning)
+			_ = reputationSys
+
+			defer func() {
+				if broadcaster != nil {
+					broadcaster.Stop()
+				}
+				if p2pNode != nil {
+					p2pNode.Close()
+				}
+			}()
+		}
+	} else {
+		log.Info("💤 P2P mode disabled - running in centralized mode")
+	}
 
 	// Initialize search index
 	searchIndex := search.NewBleveIndex(log)
@@ -86,7 +149,7 @@ func main() {
 	defer searchIndex.Close()
 
 	count, _ := searchIndex.Count()
-	log.Info("Search index opened", "path", cfg.Search.IndexPath, "document_count", count)
+	log.Info("✅ Search index opened", "path", cfg.Search.IndexPath, "document_count", count)
 
 	// Initialize repositories
 	articleRepo := sqlite.NewArticleRepo(db)
@@ -124,6 +187,9 @@ func main() {
 	searchHandler := handlers.NewSearchHandler(searchService, log)
 	healthHandler := handlers.NewHealthHandler(db, ipfsClient, searchIndex, log)
 
+	// Initialize web handler
+	webHandler := web.NewWebHandler(articleService, userService, searchService, db, p2pNode, log)
+
 	// Initialize router
 	router := api.NewRouter(
 		authHandler,
@@ -131,6 +197,7 @@ func main() {
 		feedHandler,
 		searchHandler,
 		healthHandler,
+		webHandler,
 		jwtManager,
 		cfg,
 		log,
@@ -153,14 +220,26 @@ func main() {
 
 	// Start server in goroutine
 	go func() {
-		log.Info("HTTP server starting", "address", addr)
+		log.Info("🌐 HTTP server starting", "address", addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Error("Server failed to start", "error", err)
+			log.Error("❌ Server failed to start", "error", err)
 			os.Exit(1)
 		}
 	}()
 
-	log.Info("Server started successfully", "address", addr)
+	log.Info("✅ Server started successfully", "address", addr)
+	log.Info("📝 API documentation available at /api/v1")
+	if ipfsHealthy {
+		log.Info("🌍 IPFS integration: ACTIVE")
+	} else {
+		log.Info("💤 IPFS integration: INACTIVE (local mode)")
+	}
+	if p2pNode != nil {
+		log.Info("🔗 P2P network: ACTIVE", "connected_peers", p2pNode.GetPeerCount())
+	} else {
+		log.Info("💤 P2P network: INACTIVE (centralized mode)")
+	}
+	log.Info("Press Ctrl+C to stop")
 
 	// Wait for interrupt signal for graceful shutdown
 	quit := make(chan os.Signal, 1)
@@ -180,5 +259,30 @@ func main() {
 		log.Error("Server forced to shutdown", "error", err)
 	}
 
-	log.Info("Server stopped gracefully")
+	log.Info("✅ Server stopped gracefully")
+}
+
+// ensureDirectories creates required directories if they don't exist
+func ensureDirectories(cfg *config.Config, log *logger.Logger) error {
+	dirs := []struct {
+		path string
+		name string
+	}{
+		{filepath.Dir(cfg.Database.Path), "database directory"},
+		{filepath.Dir(cfg.Search.IndexPath), "search index directory"},
+	}
+
+	for _, dir := range dirs {
+		if dir.path == "" || dir.path == "." {
+			continue
+		}
+
+		if err := os.MkdirAll(dir.path, 0755); err != nil {
+			return fmt.Errorf("failed to create %s (%s): %w", dir.name, dir.path, err)
+		}
+
+		log.Debug("Directory ensured", "path", dir.path, "type", dir.name)
+	}
+
+	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/amiyamandal-dev/newsp2p/internal/api/middleware"
 	"github.com/amiyamandal-dev/newsp2p/internal/auth"
 	"github.com/amiyamandal-dev/newsp2p/internal/config"
+	"github.com/amiyamandal-dev/newsp2p/internal/web"
 	"github.com/amiyamandal-dev/newsp2p/pkg/logger"
 )
 
@@ -18,6 +19,7 @@ type Router struct {
 	feedHandler    *handlers.FeedHandler
 	searchHandler  *handlers.SearchHandler
 	healthHandler  *handlers.HealthHandler
+	webHandler     *web.WebHandler
 	jwtManager     *auth.JWTManager
 	cfg            *config.Config
 	logger         *logger.Logger
@@ -30,6 +32,7 @@ func NewRouter(
 	feedHandler *handlers.FeedHandler,
 	searchHandler *handlers.SearchHandler,
 	healthHandler *handlers.HealthHandler,
+	webHandler *web.WebHandler,
 	jwtManager *auth.JWTManager,
 	cfg *config.Config,
 	logger *logger.Logger,
@@ -40,6 +43,7 @@ func NewRouter(
 		feedHandler:    feedHandler,
 		searchHandler:  searchHandler,
 		healthHandler:  healthHandler,
+		webHandler:     webHandler,
 		jwtManager:     jwtManager,
 		cfg:            cfg,
 		logger:         logger,
@@ -54,28 +58,37 @@ func (r *Router) Setup() *gin.Engine {
 	// Create engine
 	r.engine = gin.New()
 
-	// Recovery middleware
+	// Recovery middleware (global)
 	r.engine.Use(gin.Recovery())
 
-	// CORS middleware
+	// CORS middleware (global)
 	r.engine.Use(middleware.CORSMiddleware(r.cfg.CORS.AllowedOrigins))
 
-	// Logger middleware
+	// Logger middleware (global)
 	r.engine.Use(middleware.LoggerMiddleware(r.logger))
 
-	// Rate limit middleware
-	r.engine.Use(middleware.RateLimitMiddleware(
-		r.cfg.RateLimit.RequestsPerMinute,
-		r.cfg.RateLimit.Burst,
-	))
-
-	// Health check endpoints (no auth required)
+	// Health check endpoints (no rate limiting, no auth)
 	r.engine.GET("/health", r.healthHandler.Health)
 	r.engine.GET("/health/ready", r.healthHandler.Readiness)
 	r.engine.GET("/health/live", r.healthHandler.Liveness)
 
-	// API v1 routes
+	// Web UI routes (if webHandler is available)
+	if r.webHandler != nil {
+		r.engine.GET("/", r.webHandler.HomePage)
+		r.engine.GET("/explore", r.webHandler.ExplorePage)
+		r.engine.GET("/login", r.webHandler.LoginPage)
+		r.engine.GET("/register", r.webHandler.RegisterPage)
+		r.engine.GET("/create", r.webHandler.CreateArticlePage)
+		r.engine.GET("/article/:cid", r.webHandler.ArticlePage)
+		r.engine.GET("/network", r.webHandler.NetworkPage)
+	}
+
+	// API v1 routes (with rate limiting)
 	v1 := r.engine.Group("/api/v1")
+	v1.Use(middleware.RateLimitMiddleware(
+		r.cfg.RateLimit.RequestsPerMinute,
+		r.cfg.RateLimit.Burst,
+	))
 	{
 		// Auth routes (no auth required)
 		auth := v1.Group("/auth")

@@ -1,0 +1,167 @@
+{{define "content"}}
+<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8">
+        <div>
+            <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
+                Create your account
+            </h2>
+            <p class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
+                Or
+                <a href="/login" class="font-medium text-blue-600 hover:text-blue-500">
+                    sign in to existing account
+                </a>
+            </p>
+        </div>
+
+        <form class="mt-8 space-y-6" action="/api/v1/auth/register" method="POST"
+              hx-post="/api/v1/auth/register"
+              hx-target="#register-result"
+              hx-swap="innerHTML">
+
+            <div class="rounded-md shadow-sm space-y-4">
+                <!-- Username Field -->
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Username
+                    </label>
+                    <input id="username"
+                           name="username"
+                           type="text"
+                           required
+                           minlength="3"
+                           maxlength="50"
+                           class="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                           placeholder="Choose a unique username">
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">3-50 characters, alphanumeric</p>
+                </div>
+
+                <!-- Email Field -->
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Email address
+                    </label>
+                    <input id="email"
+                           name="email"
+                           type="email"
+                           required
+                           class="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                           placeholder="your@email.com">
+                </div>
+
+                <!-- Password Field -->
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Password
+                    </label>
+                    <input id="password"
+                           name="password"
+                           type="password"
+                           required
+                           minlength="8"
+                           class="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                           placeholder="Minimum 8 characters">
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Use a strong password with letters, numbers, and symbols</p>
+                </div>
+
+                <!-- Confirm Password Field -->
+                <div>
+                    <label for="confirm-password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Confirm Password
+                    </label>
+                    <input id="confirm-password"
+                           name="confirm_password"
+                           type="password"
+                           required
+                           minlength="8"
+                           class="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                           placeholder="Re-enter your password">
+                </div>
+            </div>
+
+            <!-- Response Container -->
+            <div id="register-result" class="text-sm"></div>
+
+            <!-- P2P Info Banner -->
+            <div class="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                    </svg>
+                    <div class="ml-3">
+                        <h4 class="text-sm font-medium text-blue-800 dark:text-blue-200">Decentralized Identity</h4>
+                        <p class="mt-1 text-sm text-blue-700 dark:text-blue-300">
+                            Your account will be secured with Ed25519 cryptographic keys. Your private key will be encrypted and stored locally.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Terms Checkbox -->
+            <div class="flex items-start">
+                <input id="terms"
+                       name="terms"
+                       type="checkbox"
+                       required
+                       class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1">
+                <label for="terms" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                    I agree to the
+                    <a href="/terms" class="text-blue-600 hover:text-blue-500">Terms of Service</a>
+                    and understand this is a decentralized P2P platform
+                </label>
+            </div>
+
+            <!-- Submit Button -->
+            <div>
+                <button type="submit"
+                        class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <span class="absolute left-0 inset-y-0 flex items-center pl-3">
+                        <svg class="h-5 w-5 text-blue-300 group-hover:text-blue-200" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z"/>
+                        </svg>
+                    </span>
+                    Create Account
+                </button>
+            </div>
+
+            <!-- Security Features -->
+            <div class="mt-6 grid grid-cols-3 gap-4 text-center">
+                <div>
+                    <svg class="mx-auto h-8 w-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
+                    <p class="mt-2 text-xs font-medium text-gray-700 dark:text-gray-300">End-to-End Encrypted</p>
+                </div>
+                <div>
+                    <svg class="mx-auto h-8 w-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                    <p class="mt-2 text-xs font-medium text-gray-700 dark:text-gray-300">Private Keys</p>
+                </div>
+                <div>
+                    <svg class="mx-auto h-8 w-8 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+                    </svg>
+                    <p class="mt-2 text-xs font-medium text-gray-700 dark:text-gray-300">Decentralized</p>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Client-side password validation
+document.querySelector('form').addEventListener('submit', function(e) {
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+
+    if (password !== confirmPassword) {
+        e.preventDefault();
+        document.getElementById('register-result').innerHTML =
+            '<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">' +
+            'Passwords do not match!' +
+            '</div>';
+        return false;
+    }
+});
+</script>
+{{end}}

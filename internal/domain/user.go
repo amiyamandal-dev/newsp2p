@@ -9,9 +9,9 @@ type User struct {
 	ID           string    `json:"id" db:"id"`
 	Username     string    `json:"username" db:"username" binding:"required,min=3,max=50"`
 	Email        string    `json:"email" db:"email" binding:"required,email"`
-	PasswordHash string    `json:"-" db:"password_hash"` // Never expose
-	PublicKey    string    `json:"public_key" db:"public_key"`  // Ed25519 public key
-	PrivateKey   string    `json:"-" db:"private_key"`   // Encrypted, never expose
+	PasswordHash string    `json:"-" db:"password_hash"`       // Never expose
+	PublicKey    string    `json:"public_key" db:"public_key"` // Ed25519 public key
+	PrivateKey   string    `json:"-" db:"private_key"`         // Encrypted, never expose
 	IsActive     bool      `json:"is_active" db:"is_active"`
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`

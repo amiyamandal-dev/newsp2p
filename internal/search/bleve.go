@@ -9,6 +9,7 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/mapping"
+	"github.com/blevesearch/bleve/v2/search/query"
 
 	"github.com/amiyamandal-dev/newsp2p/internal/domain"
 	"github.com/amiyamandal-dev/newsp2p/pkg/logger"
@@ -212,39 +213,39 @@ func (b *BleveIndex) Search(ctx context.Context, query *SearchQuery) (*SearchRes
 }
 
 // buildSearchQuery builds a Bleve query from search parameters
-func (b *BleveIndex) buildSearchQuery(query *SearchQuery) bleve.Query {
-	var queries []bleve.Query
+func (b *BleveIndex) buildSearchQuery(searchQuery *SearchQuery) query.Query {
+	var queries []query.Query
 
 	// Full-text query on title and body
-	if query.Query != "" {
-		matchQuery := bleve.NewMatchQuery(query.Query)
+	if searchQuery.Query != "" {
+		matchQuery := bleve.NewMatchQuery(searchQuery.Query)
 		queries = append(queries, matchQuery)
 	}
 
 	// Author filter
-	if query.Author != "" {
-		authorQuery := bleve.NewMatchQuery(query.Author)
+	if searchQuery.Author != "" {
+		authorQuery := bleve.NewMatchQuery(searchQuery.Author)
 		authorQuery.SetField("author")
 		queries = append(queries, authorQuery)
 	}
 
 	// Category filter
-	if query.Category != "" {
-		categoryQuery := bleve.NewMatchQuery(query.Category)
+	if searchQuery.Category != "" {
+		categoryQuery := bleve.NewMatchQuery(searchQuery.Category)
 		categoryQuery.SetField("category")
 		queries = append(queries, categoryQuery)
 	}
 
 	// Tags filter
-	for _, tag := range query.Tags {
+	for _, tag := range searchQuery.Tags {
 		tagQuery := bleve.NewMatchQuery(tag)
 		tagQuery.SetField("tags")
 		queries = append(queries, tagQuery)
 	}
 
 	// Date range filter
-	if !query.FromDate.IsZero() || !query.ToDate.IsZero() {
-		dateQuery := bleve.NewDateRangeQuery(query.FromDate, query.ToDate)
+	if !searchQuery.FromDate.IsZero() || !searchQuery.ToDate.IsZero() {
+		dateQuery := bleve.NewDateRangeQuery(searchQuery.FromDate, searchQuery.ToDate)
 		dateQuery.SetField("timestamp")
 		queries = append(queries, dateQuery)
 	}

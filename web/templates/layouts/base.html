@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} - NewsP2P</title>
+
+    <!-- TailwindCSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- HTMX for dynamic interactions -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+    <!-- Alpine.js for interactivity -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <!-- Custom styles -->
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="h-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+    <!-- Navigation -->
+    <nav class="bg-white dark:bg-gray-800 shadow-lg border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <!-- Logo -->
+                    <a href="/" class="flex items-center space-x-3">
+                        <svg class="w-8 h-8 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5zm0 18.5c-3.76-1.08-6.5-4.72-6.5-8.5V8.3l6.5-3.11L18.5 8.3V12c0 3.78-2.74 7.42-6.5 8.5z"/>
+                        </svg>
+                        <span class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                            NewsP2P
+                        </span>
+                    </a>
+
+                    <!-- Main Nav -->
+                    <div class="hidden md:ml-10 md:flex md:space-x-8">
+                        <a href="/" class="text-gray-700 dark:text-gray-200 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+                            Feed
+                        </a>
+                        <a href="/explore" class="text-gray-700 dark:text-gray-200 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+                            Explore
+                        </a>
+                        <a href="/network" class="text-gray-700 dark:text-gray-200 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+                            🔗 Network
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Right side -->
+                <div class="flex items-center space-x-4">
+                    <!-- Search -->
+                    <div class="hidden md:block">
+                        <input type="search"
+                               placeholder="Search articles..."
+                               class="w-64 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                               hx-get="/search"
+                               hx-trigger="keyup changed delay:500ms"
+                               hx-target="#search-results">
+                    </div>
+
+                    {{if .User}}
+                    <!-- User menu -->
+                    <div x-data="{ open: false }" class="relative">
+                        <button @click="open = !open" class="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold">
+                                {{index .User.Username 0 | printf "%c" | upper}}
+                            </div>
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-200">{{.User.Username}}</span>
+                        </button>
+
+                        <div x-show="open"
+                             @click.away="open = false"
+                             x-cloak
+                             class="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5">
+                            <div class="py-1">
+                                <a href="/profile" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                    👤 Profile
+                                </a>
+                                <a href="/create" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                    ✍️ Write Article
+                                </a>
+                                <a href="/logout" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                    🚪 Logout
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {{else}}
+                    <!-- Auth buttons -->
+                    <a href="/login" class="text-gray-700 dark:text-gray-200 hover:text-blue-600 px-4 py-2 rounded-md text-sm font-medium">
+                        Login
+                    </a>
+                    <a href="/register" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-blue-700 hover:to-purple-700 transition">
+                        Get Started
+                    </a>
+                    {{end}}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {{template "content" .}}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="text-center text-gray-600 dark:text-gray-400">
+                <p class="text-sm">
+                    🌐 Powered by P2P Technology | 🔒 Decentralized & Censorship-Resistant
+                </p>
+                <p class="text-xs mt-2">
+                    Connected to <span class="font-bold text-blue-600">{{.PeerCount}}</span> peers
+                </p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

@@ -39,20 +39,34 @@ func (h *HealthHandler) Health(c *gin.Context) {
 // Readiness checks if the service is ready to handle requests
 func (h *HealthHandler) Readiness(c *gin.Context) {
 	ctx := context.Background()
-	checks := make(map[string]bool)
+	checks := make(map[string]interface{})
 
-	// Check database
-	checks["database"] = h.db.HealthCheck() == nil
+	// Check database (required)
+	dbHealthy := h.db.HealthCheck() == nil
+	checks["database"] = map[string]interface{}{
+		"healthy":  dbHealthy,
+		"required": true,
+	}
 
-	// Check IPFS
-	checks["ipfs"] = h.ipfsClient.IsHealthy(ctx)
+	// Check IPFS (optional - service can run without it)
+	ipfsHealthy := h.ipfsClient.IsHealthy(ctx)
+	checks["ipfs"] = map[string]interface{}{
+		"healthy":  ipfsHealthy,
+		"required": false,
+		"note":     "Optional - some features unavailable if offline",
+	}
 
-	// Check search index
-	_, err := h.searchIndex.Count()
-	checks["search"] = err == nil
+	// Check search index (required)
+	searchCount, err := h.searchIndex.Count()
+	searchHealthy := err == nil
+	checks["search"] = map[string]interface{}{
+		"healthy":        searchHealthy,
+		"required":       true,
+		"document_count": searchCount,
+	}
 
-	// Overall status
-	ready := checks["database"] && checks["ipfs"] && checks["search"]
+	// Overall status - only required services must be healthy
+	ready := dbHealthy && searchHealthy
 
 	status := "ready"
 	code := 200
@@ -61,10 +75,17 @@ func (h *HealthHandler) Readiness(c *gin.Context) {
 		code = 503
 	}
 
-	c.JSON(code, gin.H{
+	response := gin.H{
 		"status": status,
 		"checks": checks,
-	})
+	}
+
+	// Add warning if IPFS is down
+	if !ipfsHealthy {
+		response["warnings"] = []string{"IPFS not available - article uploads and IPNS features disabled"}
+	}
+
+	c.JSON(code, response)
 }
 
 // Liveness checks if the service is alive

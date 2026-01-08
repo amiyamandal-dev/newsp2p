@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -17,6 +18,7 @@ type Config struct {
 	Logging   LoggingConfig
 	RateLimit RateLimitConfig
 	CORS      CORSConfig
+	P2P       P2PConfig
 }
 
 // ServerConfig contains HTTP server configuration
@@ -74,6 +76,14 @@ type CORSConfig struct {
 	AllowedOrigins []string `mapstructure:"allowed_origins"`
 }
 
+// P2PConfig contains P2P network configuration
+type P2PConfig struct {
+	Enabled        bool     `mapstructure:"enabled"`
+	ListenAddrs    []string `mapstructure:"listen_addrs"`
+	BootstrapPeers []string `mapstructure:"bootstrap_peers"`
+	Rendezvous     string   `mapstructure:"rendezvous"`
+}
+
 // Load loads configuration from file and environment variables
 // Priority: ENV vars > config.yaml > defaults
 func Load() (*Config, error) {
@@ -88,6 +98,7 @@ func Load() (*Config, error) {
 
 	// Bind environment variables
 	viper.SetEnvPrefix("NEWS")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
 	// Read config file (optional - OK if it doesn't exist)
@@ -150,6 +161,18 @@ func setDefaults() {
 
 	// CORS defaults
 	viper.SetDefault("cors.allowed_origins", []string{"http://localhost:3000"})
+
+	// P2P defaults
+	viper.SetDefault("p2p.enabled", true)
+	viper.SetDefault("p2p.listen_addrs", []string{
+		"/ip4/0.0.0.0/tcp/0",
+		"/ip4/0.0.0.0/udp/0/quic-v1",
+	})
+	viper.SetDefault("p2p.bootstrap_peers", []string{
+		"/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN",
+		"/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa",
+	})
+	viper.SetDefault("p2p.rendezvous", "newsp2p-network")
 }
 
 // validate validates the configuration

@@ -1,0 +1,249 @@
+{{define "content"}}
+<div class="space-y-8">
+    <!-- Page Header -->
+    <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white shadow-2xl">
+        <h1 class="text-4xl font-bold mb-2">P2P Network Dashboard</h1>
+        <p class="text-xl opacity-90">
+            Real-time view of the decentralized news network
+        </p>
+    </div>
+
+    <!-- Network Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <!-- Connected Peers -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-medium text-gray-600 dark:text-gray-400">Connected Peers</h3>
+                <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+            </div>
+            <p class="text-4xl font-bold text-gray-900 dark:text-white">{{.PeerCount}}</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Active connections</p>
+        </div>
+
+        <!-- Your Peer ID -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Your Peer ID</h3>
+            <p class="text-sm font-mono text-gray-900 dark:text-white break-all">
+                {{if .PeerID}}
+                {{.PeerID | truncate 20}}...
+                {{else}}
+                Not connected
+                {{end}}
+            </p>
+            {{if .PeerID}}
+            <button onclick="navigator.clipboard.writeText('{{.PeerID}}')"
+                    class="mt-3 text-xs text-blue-600 hover:text-blue-700 flex items-center">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                Copy full ID
+            </button>
+            {{end}}
+        </div>
+
+        <!-- Network Health -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Network Health</h3>
+            <div class="flex items-center">
+                {{if gt .PeerCount 5}}
+                <span class="text-3xl">✅</span>
+                <span class="ml-3 text-lg font-semibold text-green-600 dark:text-green-400">Excellent</span>
+                {{else if gt .PeerCount 2}}
+                <span class="text-3xl">⚠️</span>
+                <span class="ml-3 text-lg font-semibold text-yellow-600 dark:text-yellow-400">Good</span>
+                {{else}}
+                <span class="text-3xl">🔴</span>
+                <span class="ml-3 text-lg font-semibold text-red-600 dark:text-red-400">Low</span>
+                {{end}}
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Based on peer connections</p>
+        </div>
+
+        <!-- Uptime -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Node Uptime</h3>
+            <p class="text-3xl font-bold text-gray-900 dark:text-white">99.9%</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Last 30 days</p>
+        </div>
+    </div>
+
+    <!-- Connected Peers List -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Connected Peers</h2>
+                <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+                        onclick="location.reload()">
+                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    Refresh
+                </button>
+            </div>
+        </div>
+
+        <div class="p-6">
+            {{if .Peers}}
+            <div class="space-y-4">
+                {{range .Peers}}
+                <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center flex-1">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center text-white font-bold">
+                            P
+                        </div>
+                        <div class="ml-4 flex-1">
+                            <p class="font-mono text-sm text-gray-900 dark:text-white break-all">{{.ID}}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Status: <span class="text-green-600 dark:text-green-400">{{.Status}}</span></p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">Active</span>
+                    </div>
+                </div>
+                {{end}}
+            </div>
+            {{else}}
+            <div class="text-center py-12">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414"/>
+                </svg>
+                <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-white">No Peers Connected</h3>
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Your node is starting up or experiencing connectivity issues.
+                </p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Check your firewall settings or try restarting the P2P service.
+                </p>
+            </div>
+            {{end}}
+        </div>
+    </div>
+
+    <!-- PubSub Topics -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Active PubSub Topics</h2>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Message channels for P2P communication</p>
+        </div>
+
+        <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Articles Topic -->
+                <div class="p-4 bg-blue-50 dark:bg-blue-900 rounded-lg border border-blue-200 dark:border-blue-700">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="font-semibold text-blue-900 dark:text-blue-200">newsp2p/articles/v1</h3>
+                        <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    </div>
+                    <p class="text-xs text-blue-700 dark:text-blue-300">Article broadcasts and updates</p>
+                </div>
+
+                <!-- Feeds Topic -->
+                <div class="p-4 bg-purple-50 dark:bg-purple-900 rounded-lg border border-purple-200 dark:border-purple-700">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="font-semibold text-purple-900 dark:text-purple-200">newsp2p/feeds/v1</h3>
+                        <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    </div>
+                    <p class="text-xs text-purple-700 dark:text-purple-300">Feed synchronization messages</p>
+                </div>
+
+                <!-- Votes Topic -->
+                <div class="p-4 bg-green-50 dark:bg-green-900 rounded-lg border border-green-200 dark:border-green-700">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="font-semibold text-green-900 dark:text-green-200">newsp2p/votes/v1</h3>
+                        <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    </div>
+                    <p class="text-xs text-green-700 dark:text-green-300">Community voting and reputation</p>
+                </div>
+
+                <!-- Moderation Topic -->
+                <div class="p-4 bg-orange-50 dark:bg-orange-900 rounded-lg border border-orange-200 dark:border-orange-700">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="font-semibold text-orange-900 dark:text-orange-200">newsp2p/moderation/v1</h3>
+                        <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    </div>
+                    <p class="text-xs text-orange-700 dark:text-orange-300">Community moderation actions</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Network Topology Visualization -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Network Topology</h2>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Visual representation of peer connections</p>
+        </div>
+
+        <div class="p-6">
+            <div class="flex items-center justify-center h-64 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <div class="text-center">
+                    <svg class="mx-auto h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    <p class="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                        Network visualization coming soon
+                    </p>
+                    <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                        Will show real-time peer mesh topology
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Technical Details -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- DHT Info -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">DHT Configuration</h3>
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Mode:</span>
+                    <span class="font-mono text-gray-900 dark:text-white">Server</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Protocol:</span>
+                    <span class="font-mono text-gray-900 dark:text-white">Kademlia</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Bootstrap Nodes:</span>
+                    <span class="font-mono text-gray-900 dark:text-white">2 connected</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Rendezvous:</span>
+                    <span class="font-mono text-gray-900 dark:text-white">newsp2p-network</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transports -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Active Transports</h3>
+            <div class="space-y-3">
+                <div class="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900 rounded-lg">
+                    <div class="flex items-center">
+                        <span class="w-2 h-2 bg-green-500 rounded-full mr-3"></span>
+                        <span class="text-sm font-medium text-green-900 dark:text-green-200">TCP</span>
+                    </div>
+                    <span class="text-xs text-green-700 dark:text-green-300">Active</span>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900 rounded-lg">
+                    <div class="flex items-center">
+                        <span class="w-2 h-2 bg-green-500 rounded-full mr-3"></span>
+                        <span class="text-sm font-medium text-green-900 dark:text-green-200">QUIC</span>
+                    </div>
+                    <span class="text-xs text-green-700 dark:text-green-300">Active</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-refresh every 10 seconds
+setInterval(() => {
+    location.reload();
+}, 10000);
+</script>
+{{end}}

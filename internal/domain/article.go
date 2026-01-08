@@ -8,16 +8,16 @@ import (
 // Article represents a news article
 type Article struct {
 	ID           string    `json:"id" db:"id"`
-	CID          string    `json:"cid" db:"cid"`                  // IPFS content ID
+	CID          string    `json:"cid" db:"cid"` // IPFS content ID
 	Title        string    `json:"title" db:"title" binding:"required,min=1,max=200"`
 	Body         string    `json:"body" db:"body" binding:"required,min=1"`
 	Author       string    `json:"author" db:"author" binding:"required"`
 	AuthorPubKey string    `json:"author_pubkey" db:"author_pubkey"` // For verification
-	Signature    string    `json:"signature" db:"signature"`      // Article signature
+	Signature    string    `json:"signature" db:"signature"`         // Article signature
 	Timestamp    time.Time `json:"timestamp" db:"timestamp"`
-	Tags         []string  `json:"tags" db:"tags"`                // JSON array in SQLite
+	Tags         []string  `json:"tags" db:"tags"` // JSON array in SQLite
 	Category     string    `json:"category" db:"category"`
-	Version      int       `json:"version" db:"version"`          // For updates
+	Version      int       `json:"version" db:"version"` // For updates
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
