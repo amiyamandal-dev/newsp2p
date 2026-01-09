@@ -13,6 +13,7 @@ type Article struct {
 	Body         string    `json:"body" db:"body" binding:"required,min=1"`
 	Author       string    `json:"author" db:"author" binding:"required"`
 	AuthorPubKey string    `json:"author_pubkey" db:"author_pubkey"` // For verification
+	OriginIP     string    `json:"origin_ip" db:"origin_ip"`         // Public IP of the author
 	Signature    string    `json:"signature" db:"signature"`         // Article signature
 	Timestamp    time.Time `json:"timestamp" db:"timestamp"`
 	Tags         []string  `json:"tags" db:"tags"` // JSON array in SQLite
@@ -59,6 +60,8 @@ var AllowedCategories = map[string]bool{
 	"opinion":       true,
 	"world":         true,
 	"local":         true,
+	"environment":   true,
+	"culture":       true,
 	"other":         true,
 }
 

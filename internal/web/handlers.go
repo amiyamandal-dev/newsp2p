@@ -1,16 +1,21 @@
 package web
 
 import (
+	"bytes"
 	"html/template"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/microcosm-cc/bluemonday"
+	"github.com/yuin/goldmark"
 
 	"github.com/amiyamandal-dev/newsp2p/internal/auth"
 	"github.com/amiyamandal-dev/newsp2p/internal/domain"
+	"github.com/amiyamandal-dev/newsp2p/internal/ipfs"
 	"github.com/amiyamandal-dev/newsp2p/internal/p2p"
 	"github.com/amiyamandal-dev/newsp2p/internal/repository/badger"
+	"github.com/amiyamandal-dev/newsp2p/internal/search"
 	"github.com/amiyamandal-dev/newsp2p/internal/service"
 	"github.com/amiyamandal-dev/newsp2p/pkg/logger"
 )
@@ -23,6 +28,7 @@ type WebHandler struct {
 	jwtManager     *auth.JWTManager
 	db             *badger.DB
 	p2pNode        *p2p.P2PNode
+	ipfsClient     *ipfs.Client
 	logger         *logger.Logger
 	templates      map[string]*template.Template
 }
@@ -35,8 +41,12 @@ func NewWebHandler(
 	jwtManager *auth.JWTManager,
 	db *badger.DB,
 	p2pNode *p2p.P2PNode,
+	ipfsClient *ipfs.Client,
 	log *logger.Logger,
 ) *WebHandler {
+	// Create sanitizer policy for markdown HTML output
+	sanitizer := bluemonday.UGCPolicy()
+
 	// Load templates with custom functions
 	funcMap := template.FuncMap{
 		"truncate": func(length int, s string) string {
@@ -46,12 +56,32 @@ func NewWebHandler(
 			return s[:length] + "..."
 		},
 		"upper": strings.ToUpper,
+		"markdown": func(s string) template.HTML {
+			var buf bytes.Buffer
+			if err := goldmark.Convert([]byte(s), &buf); err != nil {
+				return template.HTML(template.HTMLEscapeString(s))
+			}
+			// Sanitize the HTML output to prevent XSS
+			return template.HTML(sanitizer.Sanitize(buf.String()))
+		},
+		"safeHTML": func(s string) template.HTML {
+			// Sanitize any raw HTML content
+			return template.HTML(sanitizer.Sanitize(s))
+		},
+		"firstChar": func(s string) string {
+			if len(s) == 0 {
+				return "?"
+			}
+			return strings.ToUpper(string([]rune(s)[0]))
+		},
+		"urlquery": template.URLQueryEscaper,
 	}
 
 	// Create template map - parse each page with base layout
 	templates := make(map[string]*template.Template)
 
 	baseLayout := "web/templates/layouts/base.html"
+	articleListComponent := "web/templates/components/article_list.html"
 	pages := map[string]string{
 		"home":     "web/templates/pages/home.html",
 		"explore":  "web/templates/pages/explore.html",
@@ -63,9 +93,17 @@ func NewWebHandler(
 	}
 
 	for name, pagePath := range pages {
-		tmpl := template.Must(
-			template.New(name).Funcs(funcMap).ParseFiles(baseLayout, pagePath),
-		)
+		var tmpl *template.Template
+		if name == "explore" || name == "home" {
+			// Include article list component for pages that need it
+			tmpl = template.Must(
+				template.New(name).Funcs(funcMap).ParseFiles(baseLayout, pagePath, articleListComponent),
+			)
+		} else {
+			tmpl = template.Must(
+				template.New(name).Funcs(funcMap).ParseFiles(baseLayout, pagePath),
+			)
+		}
 		templates[name] = tmpl
 	}
 
@@ -76,6 +114,7 @@ func NewWebHandler(
 		jwtManager:     jwtManager,
 		db:             db,
 		p2pNode:        p2pNode,
+		ipfsClient:     ipfsClient,
 		logger:         log.WithComponent("web-handler"),
 		templates:      templates,
 	}
@@ -113,7 +152,7 @@ func (h *WebHandler) HomePage(c *gin.Context) {
 		"Stats": gin.H{
 			"TotalArticles": total,
 			"ActivePeers":   peerCount,
-			"IPFSOnline":    true, // TODO: Check actual IPFS status
+			"IPFSOnline":    h.ipfsClient != nil && h.ipfsClient.IsHealthy(ctx),
 			"P2PEnabled":    p2pEnabled,
 			"PeerID":        peerID,
 		},
@@ -196,7 +235,7 @@ func (h *WebHandler) LoginPage(c *gin.Context) {
 		// Validate token
 		_, err := h.jwtManager.ValidateToken(token)
 		if err == nil {
-			c.SetCookie(CookieAccessToken, token, 3600*24, "/", "", false, true)
+			SetSecureCookie(c, CookieAccessToken, token, 3600*24)
 			c.Redirect(http.StatusSeeOther, "/")
 			return
 		}
@@ -250,13 +289,16 @@ func (h *WebHandler) WebLogin(c *gin.Context) {
 			"Error":     "Invalid username or password",
 			"PeerCount": h.getPeerCount(),
 		}
-		h.templates["login"].ExecuteTemplate(c.Writer, "base.html", data)
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		if err := h.templates["login"].ExecuteTemplate(c.Writer, "base.html", data); err != nil {
+			h.logger.Error("Template error", "error", err)
+			c.String(http.StatusInternalServerError, "Template error")
+		}
 		return
 	}
 
-	// Set cookie
-	// MaxAge in seconds (24 hours)
-	c.SetCookie(CookieAccessToken, loginResp.Tokens.AccessToken, 3600*24, "/", "", false, true)
+	// Set cookie with secure attributes (24 hours)
+	SetSecureCookie(c, CookieAccessToken, loginResp.Tokens.AccessToken, 3600*24)
 
 	c.Redirect(http.StatusSeeOther, "/")
 }
@@ -278,13 +320,17 @@ func (h *WebHandler) WebRegister(c *gin.Context) {
 		if err == domain.ErrUserAlreadyExists {
 			errorMsg = "Username or email already exists"
 		}
-		
+
 		data := gin.H{
 			"Title":     "Register",
 			"Error":     errorMsg,
 			"PeerCount": h.getPeerCount(),
 		}
-		h.templates["register"].ExecuteTemplate(c.Writer, "base.html", data)
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		if err := h.templates["register"].ExecuteTemplate(c.Writer, "base.html", data); err != nil {
+			h.logger.Error("Template error", "error", err)
+			c.String(http.StatusInternalServerError, "Template error")
+		}
 		return
 	}
 
@@ -295,7 +341,7 @@ func (h *WebHandler) WebRegister(c *gin.Context) {
 	}
 	loginResp, err := h.userService.Login(c.Request.Context(), loginReq)
 	if err == nil {
-		c.SetCookie(CookieAccessToken, loginResp.Tokens.AccessToken, 3600*24, "/", "", false, true)
+		SetSecureCookie(c, CookieAccessToken, loginResp.Tokens.AccessToken, 3600*24)
 	}
 
 	c.Redirect(http.StatusSeeOther, "/")
@@ -303,7 +349,7 @@ func (h *WebHandler) WebRegister(c *gin.Context) {
 
 // WebLogout handles logout
 func (h *WebHandler) WebLogout(c *gin.Context) {
-	c.SetCookie(CookieAccessToken, "", -1, "/", "", false, true)
+	ClearSecureCookie(c, CookieAccessToken)
 	c.Redirect(http.StatusSeeOther, "/login")
 }
 
@@ -360,7 +406,7 @@ func (h *WebHandler) WebCreateArticle(c *gin.Context) {
 		Tags:     cleanTags,
 	}
 
-	article, err := h.articleService.Create(c.Request.Context(), req, user.ID)
+	article, err := h.articleService.Create(c.Request.Context(), req, user.ID, h.getOriginIdentifier(c))
 	if err != nil {
 		h.logger.Error("Failed to create article", "error", err)
 		data := gin.H{
@@ -375,11 +421,49 @@ func (h *WebHandler) WebCreateArticle(c *gin.Context) {
 				"Tags":     tags,
 			},
 		}
-		h.templates["create"].ExecuteTemplate(c.Writer, "base.html", data)
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		if err := h.templates["create"].ExecuteTemplate(c.Writer, "base.html", data); err != nil {
+			h.logger.Error("Template error", "error", err)
+			c.String(http.StatusInternalServerError, "Template error")
+		}
 		return
 	}
 
 	c.Redirect(http.StatusSeeOther, "/article/"+article.CID)
+}
+
+// WebSearch handles search requests from the web UI (HTMX)
+func (h *WebHandler) WebSearch(c *gin.Context) {
+	q := c.Query("q")
+	author := c.Query("author")
+	category := c.Query("category")
+	tags := c.QueryArray("tags")
+	
+	query := &search.SearchQuery{
+		Query:    q,
+		Author:   author,
+		Category: category,
+		Tags:     tags,
+		Page:     1,
+		Limit:    20,
+	}
+
+	result, err := h.searchService.Search(c.Request.Context(), query)
+	if err != nil {
+		h.logger.Error("Search failed", "error", err)
+		c.String(http.StatusInternalServerError, "Search failed")
+		return
+	}
+
+	data := gin.H{
+		"Articles": result.Articles,
+	}
+
+	// Render only the article list component
+	if err := h.templates["explore"].ExecuteTemplate(c.Writer, "article_list.html", data); err != nil {
+		h.logger.Error("Template error", "error", err)
+		c.String(http.StatusInternalServerError, "Template error")
+	}
 }
 
 // NetworkPage renders the P2P network status page
@@ -421,4 +505,34 @@ func (h *WebHandler) getPeerCount() int {
 		return h.p2pNode.GetPeerCount()
 	}
 	return 0
+}
+
+// getOriginIdentifier returns a meaningful origin identifier for articles
+// For P2P nodes, it uses the peer ID; for regular clients, it uses the IP
+func (h *WebHandler) getOriginIdentifier(c *gin.Context) string {
+	// If P2P node is available, use a shortened peer ID as origin
+	if h.p2pNode != nil {
+		peerID := h.p2pNode.GetPeerID().String()
+		// Return shortened peer ID (first 12 chars after "12D3KooW" prefix)
+		if len(peerID) > 20 {
+			return "P2P:" + peerID[8:20]
+		}
+		return "P2P:" + peerID
+	}
+
+	// Try to get real IP from headers (for reverse proxy setups)
+	if xff := c.GetHeader("X-Forwarded-For"); xff != "" {
+		// X-Forwarded-For can contain multiple IPs, take the first one
+		if idx := strings.Index(xff, ","); idx != -1 {
+			return strings.TrimSpace(xff[:idx])
+		}
+		return strings.TrimSpace(xff)
+	}
+
+	if xri := c.GetHeader("X-Real-IP"); xri != "" {
+		return strings.TrimSpace(xri)
+	}
+
+	// Fall back to Gin's ClientIP
+	return c.ClientIP()
 }

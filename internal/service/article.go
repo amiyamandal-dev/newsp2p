@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -66,7 +68,7 @@ func NewArticleService(
 }
 
 // Create creates a new article
-func (s *ArticleService) Create(ctx context.Context, req *domain.ArticleCreateRequest, userID string) (*domain.Article, error) {
+func (s *ArticleService) Create(ctx context.Context, req *domain.ArticleCreateRequest, userID string, originIP string) (*domain.Article, error) {
 	// Get user with private key for signing
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
@@ -94,6 +96,7 @@ func (s *ArticleService) Create(ctx context.Context, req *domain.ArticleCreateRe
 		Body:         req.Body,
 		Author:       user.Username,
 		AuthorPubKey: user.PublicKey,
+		OriginIP:     originIP,
 		Timestamp:    time.Now(),
 		Tags:         req.Tags,
 		Category:     req.Category,
@@ -123,8 +126,10 @@ func (s *ArticleService) Create(ctx context.Context, req *domain.ArticleCreateRe
 	// Upload to IPFS
 	cid, err := s.ipfsClient.Add(ctx, articleJSON)
 	if err != nil {
-		s.logger.Error("Failed to upload to IPFS", "article_id", article.ID, "error", err)
-		return nil, err
+		s.logger.Warn("Failed to upload to IPFS - falling back to local storage", "error", err)
+		// Generate a local deterministic content ID (sha256)
+		hash := sha256.Sum256(articleJSON)
+		cid = "local-" + hex.EncodeToString(hash[:])
 	}
 
 	article.CID = cid
@@ -176,6 +181,11 @@ func (s *ArticleService) GetByCID(ctx context.Context, cid string) (*domain.Arti
 	}
 
 	// Not in database, fetch from IPFS
+	// If it's a local-only CID, we can't fetch it from IPFS
+	if len(cid) > 6 && cid[:6] == "local-" {
+		return nil, domain.ErrArticleNotFound
+	}
+
 	s.logger.Debug("Article not in database, fetching from IPFS", "cid", cid)
 	data, err := s.ipfsClient.Cat(ctx, cid)
 	if err != nil {

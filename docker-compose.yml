@@ -25,7 +25,7 @@ services:
       - ipfs
     environment:
       - NEWS_SERVER_HOST=0.0.0.0
-      - NEWS_SERVER_PORT=8080
+      - NEWS_SERVER_PORT=12345
       - NEWS_SERVER_MODE=release
       - NEWS_DATABASE_PATH=/data/news.db
       - NEWS_SEARCH_INDEX_PATH=/data/search.bleve

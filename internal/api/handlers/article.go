@@ -39,7 +39,7 @@ func (h *ArticleHandler) Create(c *gin.Context) {
 		return
 	}
 
-	article, err := h.articleService.Create(c.Request.Context(), &req, userID)
+	article, err := h.articleService.Create(c.Request.Context(), &req, userID, c.ClientIP())
 	if err != nil {
 		h.logger.Error("Failed to create article", "error", err)
 		response.InternalServerError(c, "Failed to create article")

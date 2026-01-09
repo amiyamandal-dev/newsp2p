@@ -194,9 +194,11 @@ func main() {
 	feedHandler := handlers.NewFeedHandler(feedService, syncService, log)
 	searchHandler := handlers.NewSearchHandler(searchService, log)
 	healthHandler := handlers.NewHealthHandler(db, ipfsClient, searchIndex, log)
+	uploadHandler := handlers.NewUploadHandler(ipfsClient, log)
+	networkHandler := handlers.NewNetworkHandler(p2pNode, log)
 
 	// Initialize web handler
-	webHandler := web.NewWebHandler(articleService, userService, searchService, jwtManager, db, p2pNode, log)
+	webHandler := web.NewWebHandler(articleService, userService, searchService, jwtManager, db, p2pNode, ipfsClient, log)
 
 	// Initialize router
 	router := api.NewRouter(
@@ -205,6 +207,8 @@ func main() {
 		feedHandler,
 		searchHandler,
 		healthHandler,
+		uploadHandler,
+		networkHandler,
 		webHandler,
 		jwtManager,
 		userService,

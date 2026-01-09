@@ -96,7 +96,9 @@ Configuration can be provided via:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `NEWS_DATABASE_MODE` | sqlite | **Mode**: `sqlite` or `distributed` |
-| `NEWS_SERVER_PORT` | 8080 | HTTP server port |
+| `NEWS_SERVER_HOST` | 0.0.0.0 | HTTP server host |
+| `NEWS_SERVER_PORT` | 12345 | HTTP server port |
+| `NEWS_SERVER_MODE` | release | Server mode (debug/release) |
 | `NEWS_DATABASE_PATH` | ./data/news.db | DB path (SQLite or BadgerDB) |
 | `NEWS_IPFS_API_ENDPOINT` | http://localhost:5001 | IPFS API endpoint |
 | `NEWS_AUTH_JWT_SECRET` | - | **Required**: JWT signing secret (32+ chars) |

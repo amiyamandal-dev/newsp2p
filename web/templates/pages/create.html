@@ -1,4 +1,62 @@
 {{define "content"}}
+<!-- SimpleMDE CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
+<!-- SimpleMDE JS -->
+<script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
+
+<style>
+    /* B&W Theme overrides for SimpleMDE */
+    .editor-toolbar {
+        border-color: #000 !important;
+        background-color: #fff !important;
+        opacity: 1 !important;
+    }
+    .editor-toolbar a {
+        color: #000 !important;
+    }
+    .editor-toolbar a.active, .editor-toolbar a:hover {
+        background-color: #000 !important;
+        color: #fff !important;
+        border-color: #000 !important;
+    }
+    .CodeMirror {
+        border-color: #000 !important;
+        border-radius: 0 !important;
+        background-color: #fff !important;
+        color: #000 !important;
+        font-family: 'Ubuntu Mono', monospace !important;
+    }
+    .CodeMirror-cursor {
+        border-color: #000 !important;
+    }
+    .editor-statusbar {
+        display: none !important;
+    }
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+        .editor-toolbar {
+            border-color: #fff !important;
+            background-color: #000 !important;
+        }
+        .editor-toolbar a {
+            color: #fff !important;
+        }
+        .editor-toolbar a.active, .editor-toolbar a:hover {
+            background-color: #fff !important;
+            color: #000 !important;
+            border-color: #fff !important;
+        }
+        .CodeMirror {
+            border-color: #fff !important;
+            background-color: #000 !important;
+            color: #fff !important;
+        }
+        .CodeMirror-cursor {
+            border-color: #fff !important;
+        }
+    }
+</style>
+
 <div class="max-w-4xl mx-auto">
     <!-- Header -->
     <div class="mb-8 border-b-4 border-black dark:border-white pb-4">
@@ -43,21 +101,26 @@
             <p class="mt-2 text-xs font-mono text-gray-500 dark:text-gray-400 uppercase">Maximum 200 characters</p>
         </div>
 
-        <!-- Body Field -->
+        <!-- Body Field with SimpleMDE -->
         <div class="bg-white dark:bg-black border-2 border-black dark:border-white p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
             <label for="body" class="block text-sm font-bold uppercase text-black dark:text-white mb-2">
                 Article Content <span class="text-red-600">*</span>
             </label>
+            
+            <!-- Image Upload Button (Helper) -->
+            <div class="mb-4">
+                <input type="file" id="image-upload" class="hidden" accept="image/*">
+                <button type="button" 
+                        onclick="document.getElementById('image-upload').click()"
+                        class="px-4 py-2 border-2 border-black dark:border-white text-xs font-bold uppercase hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all">
+                    Upload Image to IPFS
+                </button>
+                <span id="upload-status" class="ml-2 text-xs font-mono uppercase"></span>
+            </div>
+
             <textarea id="body"
                       name="body"
-                      required
-                      rows="20"
-                      class="w-full px-4 py-3 bg-transparent border-2 border-black dark:border-white focus:outline-none focus:bg-black focus:text-white dark:focus:bg-white dark:focus:text-black transition-colors font-mono text-sm placeholder-gray-500"
-                      placeholder="Write your article content here. You can use markdown formatting...">{{if .Form}}{{.Form.Body}}{{end}}</textarea>
-            <div class="mt-2 flex items-center justify-between text-xs font-mono text-gray-500 dark:text-gray-400 uppercase">
-                <span>Markdown supported</span>
-                <span id="word-count">0 words</span>
-            </div>
+                      class="hidden">{{if .Form}}{{.Form.Body}}{{end}}</textarea>
         </div>
 
         <!-- Category and Tags -->
@@ -133,7 +196,8 @@
 
             <div class="flex space-x-4">
                 <button type="button"
-                        class="px-6 py-3 border-2 border-gray-400 text-gray-600 font-bold uppercase hover:border-black hover:text-black transition-all">
+                        id="save-draft-btn"
+                        class="px-6 py-3 border-2 border-gray-400 text-gray-600 font-bold uppercase hover:border-black hover:text-black dark:hover:border-white dark:hover:text-white transition-all">
                     Save Draft
                 </button>
 
@@ -152,14 +216,95 @@
 </div>
 
 <script>
-// Word count
-const bodyField = document.getElementById('body');
-const wordCountDisplay = document.getElementById('word-count');
+// Initialize SimpleMDE
+var simplemde = new SimpleMDE({ 
+    element: document.getElementById("body"),
+    spellChecker: false,
+    placeholder: "Write your article content here...",
+    toolbar: ["bold", "italic", "heading", "|", "quote", "code", "unordered-list", "ordered-list", "|", "link", "image", "table", "|", "preview", "side-by-side", "fullscreen", "|", "guide"],
+    status: false,
+});
 
-bodyField.addEventListener('input', function() {
-    const text = this.value.trim();
-    const words = text ? text.split(/\s+/).length : 0;
-    wordCountDisplay.textContent = words + ' words';
+// Image Upload Logic
+const imageUpload = document.getElementById('image-upload');
+const uploadStatus = document.getElementById('upload-status');
+
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+}
+
+imageUpload.addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+        uploadStatus.textContent = "FILE TOO LARGE (MAX 10MB)";
+        uploadStatus.className = "ml-2 text-xs font-mono uppercase text-red-600";
+        imageUpload.value = '';
+        return;
+    }
+
+    uploadStatus.textContent = "UPLOADING...";
+    uploadStatus.className = "ml-2 text-xs font-mono uppercase text-blue-600";
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+        // Cookie is HttpOnly so browser sends it automatically - no need for Authorization header
+        const response = await fetch('/api/v1/upload/image', {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin' // Ensures cookies are sent
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            // Handle specific error messages
+            if (response.status === 401) {
+                throw new Error('Please log in to upload images');
+            } else if (response.status === 500 && data.error) {
+                throw new Error(data.error);
+            } else {
+                throw new Error(data.error || 'Upload failed');
+            }
+        }
+
+        if (data.success) {
+            const imageUrl = data.data.url;
+            const imageMarkdown = `\n![Image](${imageUrl})\n`;
+
+            // Insert into editor
+            const doc = simplemde.codemirror.getDoc();
+            const cursor = doc.getCursor();
+            doc.replaceRange(imageMarkdown, cursor);
+
+            uploadStatus.textContent = "UPLOADED!";
+            uploadStatus.className = "ml-2 text-xs font-mono uppercase text-green-600";
+
+            // Reset file input
+            imageUpload.value = '';
+
+            setTimeout(() => {
+                uploadStatus.textContent = "";
+            }, 3000);
+        } else {
+            throw new Error(data.error || 'Upload failed');
+        }
+    } catch (error) {
+        console.error('Upload error:', error);
+        uploadStatus.textContent = error.message || "UPLOAD FAILED";
+        uploadStatus.className = "ml-2 text-xs font-mono uppercase text-red-600";
+        imageUpload.value = '';
+
+        setTimeout(() => {
+            uploadStatus.textContent = "";
+        }, 5000);
+    }
 });
 
 // Auto-save draft to localStorage
@@ -169,7 +314,7 @@ function autoSave() {
     autoSaveTimer = setTimeout(() => {
         const draft = {
             title: document.getElementById('title').value,
-            body: document.getElementById('body').value,
+            body: simplemde.value(),
             category: document.getElementById('category').value,
             tags: document.getElementById('tags').value,
             timestamp: new Date().toISOString()
@@ -180,7 +325,7 @@ function autoSave() {
 }
 
 document.getElementById('title').addEventListener('input', autoSave);
-document.getElementById('body').addEventListener('input', autoSave);
+simplemde.codemirror.on("change", autoSave);
 document.getElementById('category').addEventListener('change', autoSave);
 document.getElementById('tags').addEventListener('input', autoSave);
 
@@ -189,21 +334,77 @@ window.addEventListener('load', function() {
     const draft = localStorage.getItem('article-draft');
     if (draft) {
         const data = JSON.parse(draft);
-        if (confirm('Found an auto-saved draft. Would you like to restore it?')) {
+        if (confirm('FOUND AN AUTO-SAVED DRAFT. RESTORE?')) {
             document.getElementById('title').value = data.title || '';
-            document.getElementById('body').value = data.body || '';
+            if (data.body) simplemde.value(data.body);
             document.getElementById('category').value = data.category || '';
             document.getElementById('tags').value = data.tags || '';
-            bodyField.dispatchEvent(new Event('input')); // Update word count
         }
     }
 });
 
-// Clear draft on successful publish
-document.querySelector('form').addEventListener('htmx:afterRequest', function(event) {
-    if (event.detail.successful) {
-        localStorage.removeItem('article-draft');
+// Form submission handler - validates and syncs content before submit
+document.querySelector('form').addEventListener('submit', function(e) {
+    // Sync SimpleMDE content to hidden textarea
+    const bodyContent = simplemde.value().trim();
+    document.getElementById('body').value = bodyContent;
+
+    // Validate required fields manually since textarea is hidden
+    if (!bodyContent) {
+        e.preventDefault();
+        alert('Article content is required');
+        simplemde.codemirror.focus();
+        return false;
     }
+
+    const title = document.getElementById('title').value.trim();
+    if (!title) {
+        e.preventDefault();
+        alert('Article title is required');
+        document.getElementById('title').focus();
+        return false;
+    }
+
+    const category = document.getElementById('category').value;
+    if (!category) {
+        e.preventDefault();
+        alert('Please select a category');
+        document.getElementById('category').focus();
+        return false;
+    }
+
+    // Clear draft on successful validation
+    localStorage.removeItem('article-draft');
+
+    // Show loading state on button
+    const submitBtn = document.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="flex items-center"><svg class="animate-spin w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>PUBLISHING...</span>';
+});
+
+// Save Draft button handler
+document.getElementById('save-draft-btn').addEventListener('click', function() {
+    const draft = {
+        title: document.getElementById('title').value,
+        body: simplemde.value(),
+        category: document.getElementById('category').value,
+        tags: document.getElementById('tags').value,
+        timestamp: new Date().toISOString()
+    };
+    localStorage.setItem('article-draft', JSON.stringify(draft));
+
+    // Visual feedback
+    const btn = this;
+    const originalText = btn.textContent;
+    btn.textContent = 'SAVED!';
+    btn.classList.add('border-green-600', 'text-green-600');
+    btn.classList.remove('border-gray-400', 'text-gray-600');
+
+    setTimeout(() => {
+        btn.textContent = originalText;
+        btn.classList.remove('border-green-600', 'text-green-600');
+        btn.classList.add('border-gray-400', 'text-gray-600');
+    }, 2000);
 });
 </script>
 {{end}}

@@ -31,7 +31,7 @@ func TestArticleFlow(t *testing.T) {
 		Tags:     []string{"p2p", "news"},
 	}
 
-	article, err := env.ArticleService.Create(ctx, articleReq, user.ID)
+	article, err := env.ArticleService.Create(ctx, articleReq, user.ID, "127.0.0.1")
 	if err != nil {
 		t.Fatalf("Failed to create article: %v", err)
 	}

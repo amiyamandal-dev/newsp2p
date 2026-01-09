@@ -56,7 +56,7 @@ func TestP2PBroadcastingFlow(t *testing.T) {
 		Tags:     []string{"p2p", "testing"},
 	}
 
-	articleA, err := envA.ArticleService.Create(ctx, articleReq, userA.ID)
+	articleA, err := envA.ArticleService.Create(ctx, articleReq, userA.ID, "127.0.0.1")
 	if err != nil {
 		t.Fatalf("Node A: Failed to create article: %v", err)
 	}
@@ -106,6 +106,9 @@ func TestP2PBroadcastingFlow(t *testing.T) {
 
 	if fetchedArticleB.Title != "P2P is Awesome" {
 		t.Errorf("Node B: Title mismatch. Got %s", fetchedArticleB.Title)
+	}
+	if fetchedArticleB.OriginIP != "127.0.0.1" {
+		t.Errorf("Node B: OriginIP mismatch. Got %s, expected 127.0.0.1", fetchedArticleB.OriginIP)
 	}
 
 	// --- Step 5: Verify it appears in Node B's Feed (ListRecent) ---

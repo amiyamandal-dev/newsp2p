@@ -20,6 +20,8 @@ type Router struct {
 	feedHandler    *handlers.FeedHandler
 	searchHandler  *handlers.SearchHandler
 	healthHandler  *handlers.HealthHandler
+	uploadHandler  *handlers.UploadHandler
+	networkHandler *handlers.NetworkHandler
 	webHandler     *web.WebHandler
 	jwtManager     *auth.JWTManager
 	userService    *service.UserService
@@ -34,6 +36,8 @@ func NewRouter(
 	feedHandler *handlers.FeedHandler,
 	searchHandler *handlers.SearchHandler,
 	healthHandler *handlers.HealthHandler,
+	uploadHandler *handlers.UploadHandler,
+	networkHandler *handlers.NetworkHandler,
 	webHandler *web.WebHandler,
 	jwtManager *auth.JWTManager,
 	userService *service.UserService,
@@ -46,6 +50,8 @@ func NewRouter(
 		feedHandler:    feedHandler,
 		searchHandler:  searchHandler,
 		healthHandler:  healthHandler,
+		uploadHandler:  uploadHandler,
+		networkHandler: networkHandler,
 		webHandler:     webHandler,
 		jwtManager:     jwtManager,
 		userService:    userService,
@@ -76,22 +82,52 @@ func (r *Router) Setup() *gin.Engine {
 	r.engine.GET("/health/ready", r.healthHandler.Readiness)
 	r.engine.GET("/health/live", r.healthHandler.Liveness)
 
+	// Serve API Documentation
+	r.engine.StaticFile("/docs/openapi.yaml", "./docs/openapi.yaml")
+	r.engine.GET("/docs", func(c *gin.Context) {
+		c.Header("Content-Type", "text/html")
+		c.String(200, `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="SwaggerUI" />
+  <title>Liberation News API Docs</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js" crossorigin></script>
+<script>
+  window.onload = () => {
+    window.ui = SwaggerUIBundle({
+      url: '/docs/openapi.yaml',
+      dom_id: '#swagger-ui',
+    });
+  };
+</script>
+</body>
+</html>`)
+	})
+
 	// Web UI routes (if webHandler is available)
 	if r.webHandler != nil {
-		// Apply web auth middleware
-		r.engine.Use(web.AuthMiddleware(r.jwtManager, r.userService))
-
-		r.engine.GET("/", r.webHandler.HomePage)
-		r.engine.GET("/explore", r.webHandler.ExplorePage)
-		r.engine.GET("/login", r.webHandler.LoginPage)
-		r.engine.POST("/login", r.webHandler.WebLogin)
-		r.engine.GET("/logout", r.webHandler.WebLogout)
-		r.engine.GET("/register", r.webHandler.RegisterPage)
-		r.engine.POST("/register", r.webHandler.WebRegister)
-		r.engine.GET("/create", r.webHandler.CreateArticlePage)
-		r.engine.POST("/create", r.webHandler.WebCreateArticle)
-		r.engine.GET("/article/:cid", r.webHandler.ArticlePage)
-		r.engine.GET("/network", r.webHandler.NetworkPage)
+		// Create a web routes group with web auth middleware
+		webRoutes := r.engine.Group("")
+		webRoutes.Use(web.AuthMiddleware(r.jwtManager, r.userService))
+		{
+			webRoutes.GET("/", r.webHandler.HomePage)
+			webRoutes.GET("/explore", r.webHandler.ExplorePage)
+			webRoutes.GET("/login", r.webHandler.LoginPage)
+			webRoutes.POST("/login", r.webHandler.WebLogin)
+			webRoutes.GET("/logout", r.webHandler.WebLogout)
+			webRoutes.GET("/register", r.webHandler.RegisterPage)
+			webRoutes.POST("/register", r.webHandler.WebRegister)
+			webRoutes.GET("/create", r.webHandler.CreateArticlePage)
+			webRoutes.POST("/create", r.webHandler.WebCreateArticle)
+			webRoutes.GET("/article/:cid", r.webHandler.ArticlePage)
+			webRoutes.GET("/network", r.webHandler.NetworkPage)
+		}
 	}
 
 	// API v1 routes (with rate limiting)
@@ -101,6 +137,21 @@ func (r *Router) Setup() *gin.Engine {
 		r.cfg.RateLimit.Burst,
 	))
 	{
+		// Upload routes
+		upload := v1.Group("/upload")
+		upload.Use(middleware.AuthMiddleware(r.jwtManager))
+		{
+			upload.POST("/image", r.uploadHandler.UploadImage)
+		}
+
+		// Network routes
+		network := v1.Group("/network")
+		{
+			network.GET("/stats", r.networkHandler.GetStats)
+			network.GET("/peers", r.networkHandler.GetPeers)
+			network.GET("/peers/:id", r.networkHandler.GetPeerInfo)
+		}
+
 		// Auth routes (no auth required)
 		auth := v1.Group("/auth")
 		{
