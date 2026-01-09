@@ -67,6 +67,44 @@
         </div>
     </div>
 
+    <!-- Your Node Addresses (for sharing) -->
+    {{if .Addresses}}
+    <div class="bg-white dark:bg-black border-2 border-black dark:border-white p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
+        <div class="border-b-4 border-black dark:border-white pb-4 mb-6">
+            <h2 class="text-2xl font-black uppercase text-black dark:text-white">Your Node Addresses</h2>
+            <p class="text-sm font-mono uppercase text-gray-600 dark:text-gray-400 mt-1">Share these with other nodes to connect directly</p>
+        </div>
+        <div class="space-y-2">
+            {{range .Addresses}}
+            <div class="flex items-center justify-between p-3 border-2 border-black dark:border-white bg-gray-50 dark:bg-gray-900">
+                <code class="text-xs font-mono text-black dark:text-white break-all flex-1 mr-4">{{.}}</code>
+                <button onclick="navigator.clipboard.writeText('{{.}}'); this.textContent='COPIED!'; setTimeout(() => this.textContent='COPY', 2000);"
+                        class="px-3 py-1 border-2 border-black dark:border-white text-black dark:text-white font-bold uppercase text-xs hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all whitespace-nowrap">
+                    Copy
+                </button>
+            </div>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+
+    <!-- Connect to Peer -->
+    <div class="bg-white dark:bg-black border-2 border-black dark:border-white p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
+        <div class="border-b-4 border-black dark:border-white pb-4 mb-6">
+            <h2 class="text-2xl font-black uppercase text-black dark:text-white">Connect to Peer</h2>
+            <p class="text-sm font-mono uppercase text-gray-600 dark:text-gray-400 mt-1">Manually connect to another node</p>
+        </div>
+        <form id="connect-peer-form" class="flex flex-col md:flex-row gap-4">
+            <input type="text" id="peer-address" placeholder="/ip4/192.168.1.100/tcp/4001/p2p/12D3KooW..."
+                   class="flex-1 px-4 py-3 border-2 border-black dark:border-white bg-transparent text-black dark:text-white font-mono text-sm focus:outline-none focus:bg-black focus:text-white dark:focus:bg-white dark:focus:text-black">
+            <button type="submit"
+                    class="px-6 py-3 bg-black dark:bg-white text-white dark:text-black font-bold uppercase hover:opacity-80 transition-all">
+                Connect
+            </button>
+        </form>
+        <p id="connect-status" class="mt-3 text-sm font-mono uppercase hidden"></p>
+    </div>
+
     <!-- Connected Peers List -->
     <div class="bg-white dark:bg-black border-2 border-black dark:border-white p-6">
         <div class="border-b-4 border-black dark:border-white pb-4 mb-6">
@@ -208,9 +246,50 @@
 </div>
 
 <script>
-// Auto-refresh every 10 seconds
+// Connect to peer form handler
+document.getElementById('connect-peer-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const address = document.getElementById('peer-address').value.trim();
+    const status = document.getElementById('connect-status');
+
+    if (!address) {
+        status.textContent = 'Please enter a peer address';
+        status.className = 'mt-3 text-sm font-mono uppercase text-red-600';
+        return;
+    }
+
+    status.textContent = 'Connecting...';
+    status.className = 'mt-3 text-sm font-mono uppercase text-blue-600';
+
+    try {
+        const response = await fetch('/api/v1/network/connect', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address: address }),
+            credentials: 'same-origin'
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            status.textContent = 'Connected successfully to ' + data.data.peer_id.substring(0, 20) + '...';
+            status.className = 'mt-3 text-sm font-mono uppercase text-green-600';
+            document.getElementById('peer-address').value = '';
+            // Reload after 2 seconds to show the new peer
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            status.textContent = data.error || 'Connection failed';
+            status.className = 'mt-3 text-sm font-mono uppercase text-red-600';
+        }
+    } catch (error) {
+        status.textContent = 'Network error: ' + error.message;
+        status.className = 'mt-3 text-sm font-mono uppercase text-red-600';
+    }
+});
+
+// Auto-refresh every 30 seconds (changed from 10 to reduce load)
 setInterval(() => {
     location.reload();
-}, 10000);
+}, 30000);
 </script>
 {{end}}

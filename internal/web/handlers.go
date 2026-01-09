@@ -471,6 +471,7 @@ func (h *WebHandler) NetworkPage(c *gin.Context) {
 	user := GetUser(c)
 	var peers []gin.H
 	var peerID string
+	var addresses []string
 
 	if h.p2pNode != nil {
 		peerID = h.p2pNode.GetPeerID().String()
@@ -482,6 +483,13 @@ func (h *WebHandler) NetworkPage(c *gin.Context) {
 				"Status": "connected",
 			})
 		}
+
+		// Get node addresses for sharing
+		host := h.p2pNode.GetHost()
+		for _, addr := range host.Addrs() {
+			fullAddr := addr.String() + "/p2p/" + peerID
+			addresses = append(addresses, fullAddr)
+		}
 	}
 
 	data := gin.H{
@@ -490,6 +498,7 @@ func (h *WebHandler) NetworkPage(c *gin.Context) {
 		"PeerID":    peerID,
 		"Peers":     peers,
 		"PeerCount": len(peers),
+		"Addresses": addresses,
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")

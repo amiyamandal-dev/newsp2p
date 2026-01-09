@@ -40,3 +40,17 @@ cors:
   allowed_origins:
     - http://localhost:3000
     - http://localhost:12345
+
+# P2P Network Configuration
+p2p:
+  enabled: true
+  listen_addrs:
+    - /ip4/0.0.0.0/tcp/4001
+    - /ip4/0.0.0.0/udp/4001/quic-v1
+  bootstrap_peers:
+    # LibP2P public bootstrap nodes (for DHT)
+    - /dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN
+    - /dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa
+    # Add your own node addresses here for direct connection:
+    # - /ip4/YOUR_IP/tcp/4001/p2p/YOUR_PEER_ID
+  rendezvous: newsp2p-network
