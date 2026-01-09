@@ -1,58 +1,101 @@
 version: '3.8'
 
+# Liberation News - Docker Compose
+# =================================
+# Easy one-command setup for the entire network
+#
+# Usage:
+#   Start everything:     docker-compose up -d
+#   View logs:            docker-compose logs -f
+#   Stop everything:      docker-compose down
+#   Start bootstrap only: docker-compose up -d bootstrap
+#   Start news server:    docker-compose up -d news-server
+
 services:
+  # Bootstrap Server - Helps nodes discover each other
+  bootstrap:
+    build:
+      context: .
+      dockerfile: Dockerfile.bootstrap
+    container_name: liberation-bootstrap
+    ports:
+      - "4001:4001/tcp"   # P2P TCP
+      - "4001:4001/udp"   # P2P QUIC
+      - "8081:8081"       # HTTP API
+    volumes:
+      - bootstrap-data:/app/data
+    environment:
+      - BOOTSTRAP_P2P_PORT=4001
+      - BOOTSTRAP_HTTP_PORT=8081
+    networks:
+      - liberation-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # IPFS Node - Decentralized storage
   ipfs:
     image: ipfs/kubo:latest
-    container_name: newsp2p-ipfs
+    container_name: liberation-ipfs
     ports:
-      - "4001:4001"     # Swarm
-      - "5001:5001"     # API
-      - "8081:8080"     # Gateway
+      - "4002:4001"       # IPFS Swarm (different port to avoid conflict with bootstrap)
+      - "5001:5001"       # IPFS API
+      - "8080:8080"       # IPFS Gateway
     volumes:
       - ipfs-data:/data/ipfs
     environment:
       - IPFS_PROFILE=server
     networks:
-      - newsp2p-network
+      - liberation-network
     restart: unless-stopped
 
+  # News Server - Main application
   news-server:
     build: .
-    container_name: newsp2p-server
+    container_name: liberation-news
     ports:
-      - "8080:8080"
+      - "12345:12345"     # Web UI and API
+      - "4003:4001"       # P2P port (different external port)
     depends_on:
+      - bootstrap
       - ipfs
     environment:
       - NEWS_SERVER_HOST=0.0.0.0
       - NEWS_SERVER_PORT=12345
       - NEWS_SERVER_MODE=release
-      - NEWS_DATABASE_PATH=/data/news.db
+      - NEWS_DATABASE_PATH=/data/badger_db
       - NEWS_SEARCH_INDEX_PATH=/data/search.bleve
       - NEWS_IPFS_API_ENDPOINT=http://ipfs:5001
-      - NEWS_AUTH_JWT_SECRET=${JWT_SECRET:-your-secret-key-minimum-32-characters-change-this-in-production}
+      - NEWS_AUTH_JWT_SECRET=${JWT_SECRET:-change-this-secret-in-production-minimum-32-chars}
       - NEWS_LOGGING_LEVEL=info
       - NEWS_LOGGING_FORMAT=json
-      - NEWS_RATELIMIT_REQUESTS_PER_MINUTE=100
+      - NEWS_P2P_ENABLED=true
+      - BOOTSTRAP_URL=http://bootstrap:8081/bootstrap
     volumes:
       - news-data:/data
-      - ./configs:/root/configs
+      - ./configs:/app/configs:ro
     networks:
-      - newsp2p-network
+      - liberation-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:12345/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 30s
 
 volumes:
+  bootstrap-data:
+    driver: local
   ipfs-data:
     driver: local
   news-data:
     driver: local
 
 networks:
-  newsp2p-network:
+  liberation-network:
     driver: bridge

@@ -239,6 +239,62 @@ go test ./...
 CGO_ENABLED=1 go build -ldflags="-s -w" -o news-server ./cmd/server
 ```
 
+## P2P Bootstrap Server
+
+For true peer-to-peer networking, run a dedicated bootstrap server that helps peers discover each other.
+
+### Starting the Bootstrap Server
+
+```bash
+# Build and run
+go build -o bootstrap ./cmd/bootstrap
+./bootstrap
+
+# Or use the helper script
+./scripts/run-bootstrap.sh
+
+# With custom ports
+./bootstrap -p2p-port=4001 -http-port=8081
+```
+
+### Bootstrap Server Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-p2p-port` | 4001 | P2P listen port (TCP/QUIC) |
+| `-http-port` | 8081 | HTTP API port for status |
+| `-data-dir` | data | Directory for identity key |
+| `-rendezvous` | liberation-news-network | Network rendezvous string |
+
+### Bootstrap Server API
+
+```bash
+# Health check
+curl http://localhost:8081/health
+
+# Server status and connected peers
+curl http://localhost:8081/status
+
+# List connected peers
+curl http://localhost:8081/peers
+
+# Get bootstrap connection info
+curl http://localhost:8081/bootstrap
+```
+
+### Connecting Nodes to Bootstrap Server
+
+1. Start the bootstrap server and note the peer ID and address
+2. Add the bootstrap address to your node's `configs/config.yaml`:
+
+```yaml
+p2p:
+  bootstrap_peers:
+    - /ip4/YOUR_BOOTSTRAP_IP/tcp/4001/p2p/BOOTSTRAP_PEER_ID
+```
+
+3. Start your news server nodes - they will automatically discover each other
+
 ## Docker Deployment
 
 ```bash

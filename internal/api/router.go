@@ -151,6 +151,8 @@ func (r *Router) Setup() *gin.Engine {
 			network.GET("/peers", r.networkHandler.GetPeers)
 			network.GET("/peers/:id", r.networkHandler.GetPeerInfo)
 			network.POST("/connect", r.networkHandler.ConnectPeer)
+			network.POST("/sync", r.networkHandler.TriggerSync)
+			network.GET("/sync/status", r.networkHandler.GetSyncStatus)
 		}
 
 		// Auth routes (no auth required)

@@ -176,6 +176,7 @@ func main() {
 	)
 
 	// Register P2P handlers
+	var p2pSyncService *p2p.SyncService
 	if broadcaster != nil {
 		broadcaster.OnArticle(func(msg *p2p.ArticleMessage) error {
 			if msg.Article != nil {
@@ -183,6 +184,20 @@ func main() {
 			}
 			return nil
 		})
+
+		// Initialize P2P sync service for periodic article pulling
+		if p2pNode != nil {
+			p2pSyncService = p2p.NewSyncService(
+				p2pNode.GetHost(),
+				articleService,
+				articleService,
+				log,
+			)
+			p2pSyncService.Start()
+			log.Info("✅ P2P sync service started", "interval", "30s")
+
+			defer p2pSyncService.Stop()
+		}
 	}
 
 	feedService := service.NewFeedService(feedRepo, articleRepo, ipnsManager, log)
@@ -195,7 +210,7 @@ func main() {
 	searchHandler := handlers.NewSearchHandler(searchService, log)
 	healthHandler := handlers.NewHealthHandler(db, ipfsClient, searchIndex, log)
 	uploadHandler := handlers.NewUploadHandler(ipfsClient, log)
-	networkHandler := handlers.NewNetworkHandler(p2pNode, log)
+	networkHandler := handlers.NewNetworkHandler(p2pNode, p2pSyncService, log)
 
 	// Initialize web handler
 	webHandler := web.NewWebHandler(articleService, userService, searchService, jwtManager, db, p2pNode, ipfsClient, log)

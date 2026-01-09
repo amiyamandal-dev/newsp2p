@@ -14,15 +14,17 @@ import (
 
 // NetworkHandler handles network-related requests
 type NetworkHandler struct {
-	node   *p2p.P2PNode
-	logger *logger.Logger
+	node        *p2p.P2PNode
+	syncService *p2p.SyncService
+	logger      *logger.Logger
 }
 
 // NewNetworkHandler creates a new network handler
-func NewNetworkHandler(node *p2p.P2PNode, logger *logger.Logger) *NetworkHandler {
+func NewNetworkHandler(node *p2p.P2PNode, syncService *p2p.SyncService, logger *logger.Logger) *NetworkHandler {
 	return &NetworkHandler{
-		node:   node,
-		logger: logger.WithComponent("network-handler"),
+		node:        node,
+		syncService: syncService,
+		logger:      logger.WithComponent("network-handler"),
 	}
 }
 
@@ -152,5 +154,39 @@ func (h *NetworkHandler) ConnectPeer(c *gin.Context) {
 	response.Success(c, gin.H{
 		"message": "Connected successfully",
 		"peer_id": peerInfo.ID.String(),
+	})
+}
+
+// TriggerSync manually triggers an article sync with peers
+func (h *NetworkHandler) TriggerSync(c *gin.Context) {
+	if h.syncService == nil {
+		response.InternalServerError(c, "Sync service not available")
+		return
+	}
+
+	h.syncService.TriggerSync()
+	lastSync := h.syncService.GetLastSyncTime()
+
+	response.Success(c, gin.H{
+		"message":   "Sync triggered",
+		"last_sync": lastSync,
+	})
+}
+
+// GetSyncStatus returns the sync service status
+func (h *NetworkHandler) GetSyncStatus(c *gin.Context) {
+	if h.syncService == nil {
+		response.Success(c, gin.H{
+			"status":    "disabled",
+			"last_sync": nil,
+		})
+		return
+	}
+
+	lastSync := h.syncService.GetLastSyncTime()
+
+	response.Success(c, gin.H{
+		"status":    "active",
+		"last_sync": lastSync,
 	})
 }

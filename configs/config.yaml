@@ -48,9 +48,18 @@ p2p:
     - /ip4/0.0.0.0/tcp/4001
     - /ip4/0.0.0.0/udp/4001/quic-v1
   bootstrap_peers:
-    # LibP2P public bootstrap nodes (for DHT)
+    # Liberation News dedicated bootstrap server (run: go run ./cmd/bootstrap)
+    # Replace with your bootstrap server's address after starting it:
+    # - /ip4/YOUR_BOOTSTRAP_IP/tcp/4001/p2p/YOUR_BOOTSTRAP_PEER_ID
+    #
+    # LibP2P public bootstrap nodes (fallback for DHT)
     - /dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN
     - /dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa
-    # Add your own node addresses here for direct connection:
-    # - /ip4/YOUR_IP/tcp/4001/p2p/YOUR_PEER_ID
-  rendezvous: newsp2p-network
+  rendezvous: liberation-news-network
+
+# Bootstrap Server Configuration (for running your own bootstrap node)
+bootstrap:
+  p2p_port: 4001
+  http_port: 8081
+  data_dir: ./data/bootstrap
+  rendezvous: liberation-news-network

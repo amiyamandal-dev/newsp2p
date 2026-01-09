@@ -35,7 +35,8 @@ type P2PNode struct {
 	privKey crypto.PrivKey
 	peerID  peer.ID
 
-	discovery *drouting.RoutingDiscovery
+	discovery     *drouting.RoutingDiscovery
+	autoDiscovery *AutoDiscovery
 
 	topics map[string]*pubsub.Topic
 	subs   map[string]*pubsub.Subscription
@@ -64,8 +65,8 @@ func DefaultConfig() *Config {
 			"/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN",
 			"/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa",
 		},
-		ProtocolID: "/newsp2p/1.0.0",
-		Rendezvous: "newsp2p-network",
+		ProtocolID: "/liberation/1.0.0",
+		Rendezvous: "liberation-news-network",
 	}
 }
 
@@ -112,8 +113,11 @@ func NewP2PNode(ctx context.Context, cfg *Config, log *logger.Logger) (*P2PNode,
 		"addresses", h.Addrs(),
 	)
 
-	// Setup DHT for peer discovery
-	kdht, err := dht.New(ctx, h, dht.Mode(dht.ModeServer))
+	// Setup DHT for peer discovery with Liberation News protocol prefix
+	kdht, err := dht.New(ctx, h,
+		dht.Mode(dht.ModeServer),
+		dht.ProtocolPrefix("/liberation"),
+	)
 	if err != nil {
 		h.Close()
 		cancel()
@@ -155,8 +159,18 @@ func NewP2PNode(ctx context.Context, cfg *Config, log *logger.Logger) (*P2PNode,
 		logger:    log.WithComponent("p2p-node"),
 	}
 
-	// Connect to bootstrap peers
-	go node.connectToBootstrapPeers(cfg.BootstrapPeers)
+	// Initialize auto-discovery service
+	node.autoDiscovery = NewAutoDiscovery(h, "data", log)
+
+	// Add configured bootstrap peers to auto-discovery
+	for _, addr := range cfg.BootstrapPeers {
+		if err := node.autoDiscovery.AddBootstrapPeer(addr); err != nil {
+			log.Debug("Skipping invalid bootstrap peer", "addr", addr, "error", err)
+		}
+	}
+
+	// Start auto-discovery (handles bootstrap connections automatically)
+	node.autoDiscovery.Start()
 
 	// Advertise this node
 	go node.advertise(cfg.Rendezvous)
@@ -206,32 +220,6 @@ func loadOrGenerateKey(path string) (crypto.PrivKey, error) {
 	return privKey, nil
 }
 
-// connectToBootstrapPeers connects to bootstrap peers
-func (n *P2PNode) connectToBootstrapPeers(bootstrapPeers []string) {
-	connected := 0
-	for _, peerAddr := range bootstrapPeers {
-		addr, err := multiaddr.NewMultiaddr(peerAddr)
-		if err != nil {
-			n.logger.Warn("Invalid bootstrap peer address", "addr", peerAddr, "error", err)
-			continue
-		}
-
-		peerInfo, err := peer.AddrInfoFromP2pAddr(addr)
-		if err != nil {
-			n.logger.Warn("Failed to parse peer info", "addr", peerAddr, "error", err)
-			continue
-		}
-
-		if err := n.host.Connect(n.ctx, *peerInfo); err != nil {
-			n.logger.Warn("Failed to connect to bootstrap peer", "peer", peerInfo.ID, "error", err)
-		} else {
-			n.logger.Info("Connected to bootstrap peer", "peer", peerInfo.ID)
-			connected++
-		}
-	}
-
-	n.logger.Info("Bootstrap complete", "connected_peers", connected)
-}
 
 // advertise advertises this node on the network
 func (n *P2PNode) advertise(rendezvous string) {
@@ -379,6 +367,11 @@ func (n *P2PNode) Close() error {
 
 	n.cancel()
 
+	// Stop auto-discovery
+	if n.autoDiscovery != nil {
+		n.autoDiscovery.Stop()
+	}
+
 	n.mu.Lock()
 	for name, sub := range n.subs {
 		sub.Cancel()
@@ -400,4 +393,16 @@ func (n *P2PNode) Close() error {
 
 	n.logger.Info("P2P node closed successfully")
 	return nil
+}
+
+// AddBootstrapURL adds a bootstrap server URL for auto-discovery
+func (n *P2PNode) AddBootstrapURL(url string) {
+	if n.autoDiscovery != nil {
+		n.autoDiscovery.AddBootstrapURL(url)
+	}
+}
+
+// GetAutoDiscovery returns the auto-discovery service
+func (n *P2PNode) GetAutoDiscovery() *AutoDiscovery {
+	return n.autoDiscovery
 }

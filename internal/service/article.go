@@ -397,3 +397,25 @@ func (s *ArticleService) HandleIncomingArticle(article *domain.Article) error {
 	s.logger.Info("Saved new article from peer", "title", article.Title)
 	return nil
 }
+
+// HasArticle checks if an article exists in the local database
+func (s *ArticleService) HasArticle(ctx context.Context, id string) bool {
+	_, err := s.articleRepo.GetByID(ctx, id)
+	return err == nil
+}
+
+// GetRecent gets recent articles since a given time
+func (s *ArticleService) GetRecent(ctx context.Context, limit int, since time.Time) ([]*domain.Article, error) {
+	filter := &domain.ArticleListFilter{
+		FromDate: since,
+		Page:     1,
+		Limit:    limit,
+	}
+
+	articles, _, err := s.articleRepo.List(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	return articles, nil
+}
